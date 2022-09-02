@@ -1,0 +1,1 @@
+"use strict";var e;Object.defineProperty(exports,"__esModule",{value:!0}),exports.LineBreak=void 0,function(e){e[e.CRLF=0]="CRLF",e[e.LF=1]="LF"}(e=exports.LineBreak||(exports.LineBreak={}));

@@ -1,0 +1,48 @@
+import { BaseConfig } from "./BaseConfig";
+import { JsonAsset, resources } from "cc";
+{0}
+export class ConfigMgr {
+{1}
+    public static init(path: string, thisObj?: any, completeCallback?: Function) {
+        let self = this;
+        resources.load("config/config", JsonAsset, (err, asset) => {
+            console.log(asset);
+            self.parse(asset.json as any);
+            if (thisObj && completeCallback) {
+                completeCallback.call(thisObj);
+            }
+        });
+    }
+
+    public static parse(data: any[]) {
+        let pwd = "{2}";
+
+        let totalLength = data.length;
+        let totalLengthLow = totalLength - 1;
+        let sections: any[][] = [];
+        let section: any[] = [];
+        for (let n = 0; n < totalLength; n++) {
+            let value = data[n];
+            if (n == totalLengthLow) {
+                section.push(value);
+                sections.push(section);
+            } else if (pwd == value) {
+                sections.push(section);
+                section = [];
+            } else {
+                section.push(value);
+            }
+        }
+        let nAdd: number;
+
+{3}
+    }
+
+    private static getLinkedConfigs<T, W>(keys: T[], config: BaseConfig<T, W>): W[] {
+        let result: W[] = [];
+        for (let i = 0; i < keys.length; i++) {
+            result.push(config.get(keys[i], true));
+        }
+        return result;
+    }
+}

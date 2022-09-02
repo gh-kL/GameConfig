@@ -1,0 +1,4 @@
+{0}export interface {1} {
+    readonly configName: string;
+{2}
+}

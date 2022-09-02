@@ -1,0 +1,7 @@
+namespace GameConfig
+{
+    public enum {0}
+    {
+{1}
+    }
+}

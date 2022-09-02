@@ -1,0 +1,16 @@
+using System.Collections.Generic;
+
+namespace GameConfig
+{
+    public class {0}
+    {
+        public string ConfigName { get; private set; }
+{1}
+
+        public {2}(string configName, {3})
+        {
+            ConfigName = configName;
+{4}
+        }
+    }
+}

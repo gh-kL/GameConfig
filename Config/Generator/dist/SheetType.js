@@ -1,0 +1,1 @@
+"use strict";var e;Object.defineProperty(exports,"__esModule",{value:!0}),exports.SheetType=void 0,function(e){e.Enum="Enum",e.Horizontal="Horizontal",e.Vertical="Vertical"}(e=exports.SheetType||(exports.SheetType={}));

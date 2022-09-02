@@ -1,0 +1,1 @@
+"use strict";var e;Object.defineProperty(exports,"__esModule",{value:!0}),exports.SpecialType=void 0,function(e){e.Array="array",e.Enum="enum",e.Link="link"}(e=exports.SpecialType||(exports.SpecialType={}));
