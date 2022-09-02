@@ -24,15 +24,7 @@
 
     打开`命令行`，将目录定位到 `Config/Generator` 目录。
 
-    在`命令行`中执行命令： `npm install @types/node`。
-
-    在`命令行`中执行命令： `npm install cli-color`。
-
-    在`命令行`中执行命令： `npm install crypto-js`。
-
-    在`命令行`中执行命令： `npm install node-xlsx`。
-
-    在`命令行`中执行命令： `npm install uglify-js`。
+    在`命令行`中执行命令： `npm i`。
 
 3. 根据你的喜好打开`Example`中的`UnityProject（Unity示例项目）`或`CCCProject（Cocos Creator示例项目）`。
 4. 运行示例场景。
