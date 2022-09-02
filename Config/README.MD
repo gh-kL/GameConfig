@@ -229,6 +229,7 @@ this.btn.text = config.langId.cn;
 ---
 
 Author: kL
+
 E-mail: *klk0@qq.com*
 
 ---
