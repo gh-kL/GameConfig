@@ -77,36 +77,36 @@
 
 字段和类型是填写在同一个单元格的，**不能包含中文和空格，首个字符不能是数字**，例如：`sub_type#int`或`subType#int`，生成给程序的都是**小驼峰命名方式**——`subType: number`，如下图：
 
-![array](Generator/img/field_name.png)
+![array](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/field_name.png?raw=true)
 
 类型支持：
 
-| 类型              | 关键字       | 语言支持 |
-| :---------------- | :----------- | :------: |
-| 布尔              | bool         |   全部   |
-| 整型              | int          |   全部   |
-| 浮点型            | float        |   全部   |
-| 字符串            | string       |   全部   |
-| 布尔一维数组      | bool[]       |   全部   |
-| 布尔二维数组      | bool[][]     |   全部   |
-| 布尔三维数组      | bool[][][]   |   全部   |
-| 整型一维数组      | int[]        |   全部   |
-| 整型二维数组      | int[][]      |   全部   |
-| 整型三维数组      | int[][][]    |   全部   |
-| 浮点型一维数组    | float[]      |   全部   |
-| 浮点型二维数组    | float[][]    |   全部   |
-| 浮点型三维数组    | float[][][]  |   全部   |
-| 字符串一维数组    | string[]     |   全部   |
-| 字符串二维数组    | string[][]   |   全部   |
-| 字符串三维数组    | string[][][] |   全部   |
-| *任意类型         | any          |  JS/TS   |
-| *任意类型一维数组 | any[]        |  JS/TS   |
+| 类型             | 关键字       | 语言支持 |
+| :--------------- | :----------- | :------: |
+| 布尔             | bool         |   全部   |
+| 整型             | int          |   全部   |
+| 浮点型           | float        |   全部   |
+| 字符串           | string       |   全部   |
+| 布尔一维数组     | bool[]       |   全部   |
+| 布尔二维数组     | bool[][]     |   全部   |
+| 布尔三维数组     | bool[][][]   |   全部   |
+| 整型一维数组     | int[]        |   全部   |
+| 整型二维数组     | int[][]      |   全部   |
+| 整型三维数组     | int[][][]    |   全部   |
+| 浮点型一维数组   | float[]      |   全部   |
+| 浮点型二维数组   | float[][]    |   全部   |
+| 浮点型三维数组   | float[][][]  |   全部   |
+| 字符串一维数组   | string[]     |   全部   |
+| 字符串二维数组   | string[][]   |   全部   |
+| 字符串三维数组   | string[][][] |   全部   |
+| 任意类型         | any          |  JS/TS   |
+| 任意类型一维数组 | any[]        |  JS/TS   |
 
 ### 3.3 生成至..
 
 顾名思义，就是生成至哪个端，填写方式由 `|` 隔开，如下图：
 
-![array](Generator/img/gen_to.png)
+![array](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/gen_to.png?raw=true)
 
 比如现在的 **Config.json** 文件中是这样的：
 
@@ -121,7 +121,7 @@
 
 在特殊类型的单元格填`array#字段名`即可。如下图：
 
-![array](Generator/img/array.png)
+![array](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/array.png?raw=true)
 
 导出到程序端是这样子：
 
@@ -139,7 +139,7 @@
 
 在特殊类型的单元格填`link#配置表名`即可。如下图：
 
-![link](Generator/img/link.png)
+![link](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/link.png?raw=true)
 
 上图表示的是 langId 字段连接了语言表（Lang），所以请**确保有另一张叫做 Lang 的表存在**！
 
@@ -155,7 +155,7 @@ this.btn.text = config.langId.cn;
 
 在特殊类型的单元格填`enum#枚举表名`即可。如下图：
 
-![link](Generator/img/enum.png)
+![link](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/enum.png?raw=true)
 
 上图表示的是`type`为枚举类型（asset_type）的**枚举**，所以请**确保有另一张叫做 AssetType 的枚举表存在**！
 
@@ -163,7 +163,7 @@ this.btn.text = config.langId.cn;
 
 枚举表的格式比较特殊，如下图：
 
-![link](Generator/img/enum_sheet.png)
+![link](https://github.com/gh-kL/GameConfig/blob/main/Config/Generator/img/enum_sheet.png?raw=true)
 
 > 第一列为 **枚举Key**。
 > 第二列为 **枚举Value**。**（JS、TS支持整型与字符串；C#端仅支持整型）**
