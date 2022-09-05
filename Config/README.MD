@@ -12,11 +12,6 @@
 
 1. 安装 [Node.js LTS版](https://nodejs.org/en/)（写本工具时用的版本是*16.17.0*）。
 2. 打开`命令行`，将目录定位到 `Generator` 目录。
-3. 在`命令行`中执行命令： `npm install @types/node`。
-4. 在`命令行`中执行命令： `npm install cli-color`。
-5. 在`命令行`中执行命令： `npm install crypto-js`。
-6. 在`命令行`中执行命令： `npm install node-xlsx`。
-7. 在`命令行`中执行命令： `npm install uglify-js`。
 
 ---
 
