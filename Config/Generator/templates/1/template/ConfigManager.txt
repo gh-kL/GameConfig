@@ -11,7 +11,8 @@ namespace GameConfig
         public static void Init(string configPath)
         {
             var textAsset = Resources.Load(configPath) as TextAsset;
-            Parse(textAsset.text);
+            var configText = ConfigUtility.DecodeBase64(textAsset.text);
+            Parse(configText);
         }
         
         public static void Parse(string configText)

@@ -10,6 +10,9 @@ import { IConfigExport } from "../IConfigExport";
 import { CodeLanguageEnum } from "../CodeLanguageEnum";
 import { LineBreak } from "../utils/LineBreak";
 import { CodeWriter } from "../utils/CodeWriter";
+import encBase64 from "crypto-js/enc-base64";
+import encUTF8 from "crypto-js/enc-utf8";
+import hmacSHA512 from 'crypto-js/hmac-sha512';
 
 /**
  * @Doc 生成CS模块
@@ -705,7 +708,10 @@ export class GenCSModule {
             }
         }
 
-        IOUtils.writeTextFile(this._export.export_url, cw.content, null, "导出配置文本成功！-> {0}");
+        let wordArr = encUTF8.parse(cw.content);
+        let encContent = encBase64.stringify(wordArr);
+
+        IOUtils.writeTextFile(this._export.export_url, encContent, null, "导出配置文本成功！-> {0}");
 
         return true;
     }

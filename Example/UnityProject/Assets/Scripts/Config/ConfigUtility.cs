@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -5,6 +6,48 @@ namespace GameConfig
 {
     public class ConfigUtility
     {
+        public static string EncodeBase64(string source)
+        {
+            return EncodeBase64(Encoding.UTF8, source);
+        }
+
+        public static string EncodeBase64(Encoding encoding, string source)
+        {
+            string encode;
+            byte[] bytes = encoding.GetBytes(source);
+            try
+            {
+                encode = Convert.ToBase64String(bytes);
+            }
+            catch (Exception e)
+            {
+                encode = source;
+            }
+
+            return encode;
+        }
+
+        public static string DecodeBase64(string result)
+        {
+            return DecodeBase64(Encoding.UTF8, result);
+        }
+
+        public static string DecodeBase64(Encoding encoding, string result)
+        {
+            string decode;
+            byte[] bytes = Convert.FromBase64String(result);
+            try
+            {
+                decode = encoding.GetString(bytes);
+            }
+            catch (Exception e)
+            {
+                decode = result;
+            }
+
+            return decode;
+        }
+
         /// <summary>
         /// 解析 Bool
         /// </summary>
@@ -50,7 +93,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<int> result = new List<int>();
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -91,7 +134,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<float> result = new List<float>();
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -132,7 +175,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<string> result = new List<string>();
 
             StringBuilder stringBuilder = new StringBuilder();
@@ -195,7 +238,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<int>> result = new List<List<int>>();
 
             List<int> layer2Param = null;
@@ -269,7 +312,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<float>> result = new List<List<float>>();
 
             List<float> layer2Param = null;
@@ -343,7 +386,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<string>> result = new List<List<string>>();
 
             List<string> layer2Param = null;
@@ -429,7 +472,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<List<int>>> result = new List<List<List<int>>>();
 
             List<List<int>> layer2Param = null;
@@ -515,7 +558,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<List<float>>> result = new List<List<List<float>>>();
 
             List<List<float>> layer2Param = null;
@@ -601,7 +644,7 @@ namespace GameConfig
         {
             if (string.IsNullOrEmpty(str))
                 return null;
-            
+
             List<List<List<string>>> result = new List<List<List<string>>>();
 
             List<List<string>> layer2Param = null;
@@ -702,6 +745,7 @@ namespace GameConfig
             {
                 result.Add(config.Get(keys[i], true));
             }
+
             return result.AsReadOnly();
         }
     }
