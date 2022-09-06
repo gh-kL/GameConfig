@@ -478,7 +478,7 @@ export class DataModel {
      * @param configName 
      * @returns 
      */
-    public getParents(configName: string) {
+    public getParents(configName: string, includeSelf?: boolean) {
         let result: string[];
         let rmk = this.remark[configName];
         while (rmk) {
@@ -493,6 +493,9 @@ export class DataModel {
             } else {
                 rmk = null;
             }
+        }
+        if (result && includeSelf) {
+            result.unshift(configName);
         }
         return result;
     }

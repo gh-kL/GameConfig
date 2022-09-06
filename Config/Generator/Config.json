@@ -9,6 +9,7 @@
   "origin_json_url": "../OriginConfig/Config.json",
   "origin_remark_url": "../OriginConfig/Remark.json",
   "origin_enum_url": "../OriginConfig/Enum.json",
+  "origin_extends_url": "../OriginConfig/Extends.json",
   "exports": [
     {
       "id": 1,

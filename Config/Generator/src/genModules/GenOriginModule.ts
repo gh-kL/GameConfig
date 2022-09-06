@@ -8,6 +8,7 @@ import { StringUtils } from "../utils/StringUtils";
 import { DataModel } from "../DataModel";
 import { CommonUtils } from "../utils/CommonUtils";
 import { LineBreak } from "../utils/LineBreak";
+import { keys } from "cli-color/lib/xterm-colors";
 
 /**
  * @Doc 生成源数据模块
@@ -66,6 +67,9 @@ export class GenOriginModule {
         }
         if (flag) {
             flag = this.exportData();
+        }
+        if (flag) {
+            flag = this.checkAndExportExtendsTreeData();
         }
         if (flag) {
             flag = this.verifyData();
@@ -1023,60 +1027,14 @@ export class GenOriginModule {
     }
 
     /**
-     * 验证数据有效性
-     * @returns 
+     * 检查并导出继承数据
      */
-    private verifyData(): boolean {
+    public checkAndExportExtendsTreeData(): boolean {
         let breakGen = false;
 
         DataModel.Instance.reset();
 
         let configNames = Object.keys(DataModel.Instance.originConfig);
-
-        // ------------------------------ began 检查链接循环 ------------------------------
-        for (let n = configNames.length - 1; n >= 0; n--) {
-            let configNameA = configNames[n];
-            let configARmk = DataModel.Instance.remark[configNameA];
-            if (!configARmk.config_other_info)
-                continue;
-
-            let linkToAConfigNames = configNames.filter((configNameB, m) => {
-                if (m == n)
-                    return false;
-                let configBRmk = DataModel.Instance.remark[configNameB];
-                if (!configBRmk.config_other_info)
-                    return false;
-                let bKeyNames = Object.keys(configBRmk);
-                for (let k = bKeyNames.length - 1; k >= 0; k--) {
-                    let keyName = bKeyNames[k];
-                    if (configBRmk[keyName]?.link == configNameA) {
-                        return true;
-                    }
-                }
-                return false;
-            });
-
-            if (!linkToAConfigNames.length)
-                continue;
-
-            let filePathA = configARmk.config_other_info.filePath;
-            let aKeyNames = Object.keys(configARmk);
-            for (let k = aKeyNames.length - 1; k >= 0; k--) {
-                let keyName = aKeyNames[k];
-                let foundIdx = linkToAConfigNames.indexOf(configARmk[keyName]?.link);
-                let configNameB = linkToAConfigNames[foundIdx];
-                if (foundIdx != -1) {
-                    breakGen = true;
-                    let configBRmk = DataModel.Instance.remark[configNameB];
-                    let filePathB = configBRmk.config_other_info.filePath;
-                    console.log(cli.red(`${configNameA} 和 ${configNameB} 循环链接（Link）了，请检查！文件路径：${filePathA}，${filePathB}`));
-                }
-            }
-        }
-
-        if (breakGen)
-            return false;
-        // ------------------------------ ended 检查链接循环 ------------------------------
 
         // ------------------------------ began 检查继承循环 ------------------------------
         for (let n = configNames.length - 1; n >= 0; n--) {
@@ -1193,6 +1151,164 @@ export class GenOriginModule {
         }
 
         // ------------------------------ ended 检查继承合法性 ------------------------------
+
+        if (breakGen)
+            return false;
+
+        let extendsData = {};
+
+        configNames.forEach(configName => {
+            let parents = DataModel.Instance.getParents(configName, true);
+            if (parents) {
+                parents.reverse();
+                let temp: any = extendsData;
+                parents.forEach(prt => {
+                    if (!temp[prt]) {
+                        temp[prt] = {};
+                    }
+                    temp = temp[prt];
+                });
+            }
+        });
+
+        // let recursionCheckEmpty = function (obj: any, keyName?: string, parent?: any) {
+        //     let keys = Object.keys(obj);
+        //     if (keys && keys.length) {
+        //         for (let n = keys.length - 1; n >= 0; n--) {
+        //             recursionCheckEmpty(obj[keys[n]], keys[n], obj);
+        //         }
+        //     } else {
+        //         if (obj && keyName && parent) {
+        //             parent[keyName] = null;
+        //         }
+        //     }
+        // };
+        // recursionCheckEmpty(extendsData);
+
+        IOUtils.writeTextFile(DataModel.Instance.config.origin_extends_url, JSON.stringify(extendsData, null, 4), LineBreak.CRLF, null, "导出Extends文件失败！ -> {0}, {1}");
+
+        // ------------------------------ began 检查继承分支是否有相同主键数据 ------------------------------
+
+        /**
+         * 获取子表
+         * @param obj 
+         * @param subs 
+         * @returns 
+         */
+        let getSubs = function (obj: any, subs?: any[]) {
+            let keys = Object.keys(obj);
+            if (!subs)
+                subs = [];
+            if (keys && keys.length) {
+                for (let n = 0; n < keys.length; n++) {
+                    subs.push(keys[n]);
+                    getSubs(obj[keys[n]], subs);
+                }
+            }
+            return subs;
+        }
+
+        let roots = Object.keys(extendsData);
+        for (let w = 0; w < roots.length; w++) {
+            let obj = extendsData[roots[w]];
+            let keys = Object.keys(obj);
+
+            if (keys && keys.length) {
+                for (let n = 0; n < keys.length; n++) {
+                    let aSubs = getSubs(obj[keys[n]]);
+                    aSubs.push(keys[n]);
+
+                    for (let m = 0; m < keys.length && n != m; m++) {
+                        let bSubs = getSubs(obj[keys[m]]);
+                        bSubs.push(keys[m]);
+
+                        for (let y = 0; y < aSubs.length; y++) {
+                            let aConfig = aSubs[y];
+                            let aOriCfg = DataModel.Instance.originConfig[aConfig];
+                            let aUKeys = (aOriCfg && aOriCfg.data) ? Object.keys(aOriCfg.data) : null;
+
+                            for (let k = 0; k < bSubs.length; k++) {
+                                let bConfig = bSubs[k];
+                                let bOriCfg = DataModel.Instance.originConfig[bConfig];
+                                let bUKeys = (bOriCfg && bOriCfg.data) ? Object.keys(bOriCfg.data) : null;
+
+                                for (let u = 0; u < aUKeys.length; u++) {
+                                    for (let e = 0; e < bUKeys.length; e++) {
+                                        if (aUKeys[u] == bUKeys[e]) {
+                                            let aPath = DataModel.Instance.remark[aConfig].config_other_info.filePath;
+                                            let bPath = DataModel.Instance.remark[bConfig].config_other_info.filePath;
+                                            console.log(cli.red(`${aConfig}和${bConfig}继承自同一个父表，不允许存在相同的主键数据${aUKeys[u]}。文件路径：${aPath}，${bPath}`));
+                                            breakGen = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ------------------------------ ended 检查继承分支是否有相同主键数据 ------------------------------
+
+        return !breakGen;
+    }
+
+    /**
+     * 验证数据有效性
+     * @returns 
+     */
+    private verifyData(): boolean {
+        let breakGen = false;
+
+        DataModel.Instance.reset();
+
+        let configNames = Object.keys(DataModel.Instance.originConfig);
+
+        // ------------------------------ began 检查链接循环 ------------------------------
+        for (let n = configNames.length - 1; n >= 0; n--) {
+            let configNameA = configNames[n];
+            let configARmk = DataModel.Instance.remark[configNameA];
+            if (!configARmk.config_other_info)
+                continue;
+
+            let linkToAConfigNames = configNames.filter((configNameB, m) => {
+                if (m == n)
+                    return false;
+                let configBRmk = DataModel.Instance.remark[configNameB];
+                if (!configBRmk.config_other_info)
+                    return false;
+                let bKeyNames = Object.keys(configBRmk);
+                for (let k = bKeyNames.length - 1; k >= 0; k--) {
+                    let keyName = bKeyNames[k];
+                    if (configBRmk[keyName]?.link == configNameA) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+
+            if (!linkToAConfigNames.length)
+                continue;
+
+            let filePathA = configARmk.config_other_info.filePath;
+            let aKeyNames = Object.keys(configARmk);
+            for (let k = aKeyNames.length - 1; k >= 0; k--) {
+                let keyName = aKeyNames[k];
+                let foundIdx = linkToAConfigNames.indexOf(configARmk[keyName]?.link);
+                let configNameB = linkToAConfigNames[foundIdx];
+                if (foundIdx != -1) {
+                    breakGen = true;
+                    let configBRmk = DataModel.Instance.remark[configNameB];
+                    let filePathB = configBRmk.config_other_info.filePath;
+                    console.log(cli.red(`${configNameA} 和 ${configNameB} 循环链接（Link）了，请检查！文件路径：${filePathA}，${filePathB}`));
+                }
+            }
+        }
+
+        if (breakGen)
+            return false;
+        // ------------------------------ ended 检查链接循环 ------------------------------
 
         return !breakGen;
     }

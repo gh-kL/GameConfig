@@ -47,6 +47,10 @@ export interface IConfig {
      */
     origin_enum_url: string,
     /**
+     * 源配置继承数据路径
+     */
+    origin_extends_url:string,
+    /**
      * 所有导出项
      */
     exports: IConfigExport[],
