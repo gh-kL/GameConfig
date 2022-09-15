@@ -173,7 +173,7 @@ this.btn.text = config.langId.cn;
 
 字段说明：
 
-```json
+```js
 {
     excel_url: "配置表URL（Excel的文件夹路径）",
     export_suffix: "配置导出脚本后的命名后缀（推荐Config）",
