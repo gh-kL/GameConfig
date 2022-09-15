@@ -139,18 +139,38 @@ export class GenOriginModule {
      * @param rData
      * @returns
      */
-    private getUniqueKey(mainKeySubs: number[], rData: any) {
+    private getUniqueKey(mainKeySubs: number[], rData: any, defaults: any, configName: string) {
         let result = "";
-        mainKeySubs.forEach((sub, n) => {
+        let hasNull: boolean;
+        let hasValue: boolean;
+
+        for (let n = 0; n < mainKeySubs.length; n++) {
+            const sub = mainKeySubs[n];
             let clip = rData[sub];
+            if (clip == null) {
+                clip = defaults[sub];
+            }
+            if (clip == null) {
+                hasNull = true;
+            }
             if (clip != null) {
+                hasValue = true;
                 result += clip;
                 if (n < mainKeySubs.length - 1) {
                     result += "_";
                 }
             }
-        });
-        return result;
+        }
+        if (hasValue && hasNull) {
+            return {
+                error: `${configName}主键数据不完整！数据：${rData}`,
+            };
+        }
+        if (result) {
+            return {
+                result: result
+            };
+        }
     }
 
     /**
@@ -261,7 +281,7 @@ export class GenOriginModule {
                                     }
                                 }
 
-                                // 检查主键是否重复
+                                // 检查主键是否重复、是否有默认值
                                 for (let y = 0; y < mainKeys.length; y++) {
                                     let mainKey = mainKeys[y];
                                     // 排除掉数字以外的主键
@@ -270,7 +290,7 @@ export class GenOriginModule {
                                         continue;
                                     }
                                     if (CommonUtils.numIsFloat(mainKey)) {
-                                        console.log(cli.red(`${sheetName}主键不支持浮点数! 主键：${mainKey}，文件路径：${filePath}`));
+                                        console.log(cli.red(`${sheetName}主键不支持浮点数! 主键：${keyNames[y]}，文件路径：${filePath}`));
                                         return false;
                                     }
 
@@ -278,9 +298,14 @@ export class GenOriginModule {
                                         if (y == b)
                                             continue;
                                         if (mainKey == mainKeys[b]) {
-                                            console.log(cli.red(`${sheetName}检测到重复的主键! 主键：${mainKey}，文件路径：${filePath}`));
+                                            console.log(cli.red(`${sheetName}检测到重复的主键! 主键：${keyNames[y]}，文件路径：${filePath}`));
                                             return false;
                                         }
+                                    }
+
+                                    if (defaults[y]) {
+                                        console.log(cli.red(`${sheetName}的主键设置了默认值，这是不被允许的。 主键：${keyNames[y]}，文件路径：${filePath}`));
+                                        return false;
                                     }
                                 }
 
@@ -643,7 +668,12 @@ export class GenOriginModule {
                     let rowData = sheetContent[u];
 
                     // 唯一主键
-                    let uniqueKey = this.getUniqueKey(mainKeySubs, rowData);
+                    let uniqueKeyRst = this.getUniqueKey(mainKeySubs, rowData, defaults, sheetNameUppercase);
+                    let uniqueKey = uniqueKeyRst?.result;
+                    if (uniqueKeyRst?.error) {
+                        console.log(cli.red(uniqueKeyRst.error));
+                        return false;
+                    }
 
                     if (!uniqueKey) {
                         // 找不到唯一主键，说明这一行是数组数据，无需处理
@@ -669,7 +699,7 @@ export class GenOriginModule {
                                 let arrVal = [];
                                 for (let q = u; q < sheetContent.length; q++) {
                                     let rrowData = sheetContent[q];
-                                    let uuniqueKey = this.getUniqueKey(mainKeySubs, rrowData);
+                                    let uuniqueKey = this.getUniqueKey(mainKeySubs, rrowData, defaults, sheetNameUppercase)?.result;
                                     if (
                                         !uuniqueKey
                                         || q == u
