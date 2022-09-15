@@ -169,7 +169,7 @@ this.btn.text = config.langId.cn;
 
 ## 四、配置（Config）
 
-本工具的配置在是`Generator/Config.json`。
+本工具的配置是`Generator/Config.json`。
 
 字段说明：
 
@@ -197,8 +197,6 @@ this.btn.text = config.langId.cn;
     ],
 }
 ```
-
-> Config 中，`id`为`0`的导出项是固定的，用于生成JSON源数据，一般情况下禁止更改。
 
 ## 五、自定义导出项（程序向）
 
