@@ -931,7 +931,7 @@ export class GenOriginModule {
                 for (let keyName in fixedKeyDatas) {
                     let data = fixedKeyDatas[keyName];
 
-                    let val = data || '';
+                    let val = data == 0 ? 0 : (data || '');
                     try {
                         val = val.replace(/\t/g, '').replace(/\r/g, '').replace(/\n/g, '');
                         let parseRst = JSON.parse(val);
