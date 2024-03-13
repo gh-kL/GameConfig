@@ -185,6 +185,7 @@ this.btn.text = config.langId.cn;
     origin_json_url: "源配置 JSON 的路径",
     origin_remark_url: "源配置 Remark JSON 的路径",
     origin_enum_url: "源配置 Enum JSON 的路径",
+    incrementalPublish: "增量编译",
     exports: [  // 所有导出项
         id: "导出项 ID",
         enabled: "启用（控制是否生成配置）",
