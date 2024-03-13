@@ -33,4 +33,5 @@ export enum CSTypeEnum {
     IntList5 = "IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<int>>>>>",
     StringList5 = "IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<string>>>>>",
     FloatList5 = "IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<IReadOnlyList<float>>>>>",
+    
 }

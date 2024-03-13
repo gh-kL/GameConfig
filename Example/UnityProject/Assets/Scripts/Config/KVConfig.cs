@@ -5,7 +5,13 @@ namespace GameConfig
     public class KVConfig
     {
         public string ConfigName { get; private set; }
+        /// <summary>
+        /// 游戏名称
+        /// </summary>
         public string GameName { private set; get; }
+        /// <summary>
+        /// 版本号
+        /// </summary>
         public string Version { private set; get; }
         public IReadOnlyList<int> A { private set; get; }
         public IReadOnlyList<IReadOnlyList<int>> B { private set; get; }

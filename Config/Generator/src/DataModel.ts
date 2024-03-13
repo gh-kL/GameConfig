@@ -1,13 +1,15 @@
 import cli from "cli-color";
 import fs from "fs";
-import { IOUtils } from "./utils/IOUtils";
-import { TSTypeEnum } from "./TSTypeEnum";
-import { CommonUtils } from "./utils/CommonUtils";
-import { CSTypeEnum } from "./CSTypeEnum";
-import { StringUtils } from "./utils/StringUtils";
-import { IConfig } from "./IConfig";
-import { SheetType } from "./SheetType";
-import { CodeLanguageEnum } from "./CodeLanguageEnum";
+import {IOUtils} from "./utils/IOUtils";
+import {TSTypeEnum} from "./TSTypeEnum";
+import {CommonUtils} from "./utils/CommonUtils";
+import {CSTypeEnum} from "./CSTypeEnum";
+import {StrUtils} from "./utils/StrUtils";
+import {IConfig} from "./IConfig";
+import {SheetType} from "./SheetType";
+import {CodeLang} from "./CodeLang";
+import {Remark} from "./Remark";
+import {RemarkField} from "./RemarkField";
 
 /**
  * @Doc 数据Model
@@ -17,12 +19,14 @@ import { CodeLanguageEnum } from "./CodeLanguageEnum";
 export class DataModel {
     // ------------------began 单例 ------------------
     private static _instance: DataModel;
+
     public static get Instance() {
         if (this._instance == null) {
             this._instance = new DataModel();
         }
         return this._instance;
     }
+
     // ------------------ended 单例 ------------------
 
     public static readonly MainKeyVarName = "mainKey";
@@ -30,7 +34,7 @@ export class DataModel {
     private _config: IConfig;
     public get config() {
         if (!this._config) {
-            let content = fs.readFileSync("Config.json", { encoding: "utf-8" });
+            let content = fs.readFileSync("Config.json", {encoding: "utf-8"});
             this._config = JSON.parse(content);
         }
         return this._config;
@@ -52,7 +56,7 @@ export class DataModel {
     public get originConfig() {
         if (!this._originConfig) {
             if (IOUtils.fileOrFolderIsExsit(this.originConfigURL)) {
-                let content = fs.readFileSync(this.originConfigURL, { encoding: "utf-8" });
+                let content = fs.readFileSync(this.originConfigURL, {encoding: "utf-8"});
                 this._originConfig = JSON.parse(content);
             }
         }
@@ -63,7 +67,7 @@ export class DataModel {
     public get remark() {
         if (!this._remark) {
             if (IOUtils.fileOrFolderIsExsit(this.remarkURL)) {
-                let content = fs.readFileSync(this.remarkURL, { encoding: "utf-8" });
+                let content = fs.readFileSync(this.remarkURL, {encoding: "utf-8"});
                 this._remark = JSON.parse(content);
             }
         }
@@ -74,7 +78,7 @@ export class DataModel {
     public get enum() {
         if (!this._enum) {
             if (IOUtils.fileOrFolderIsExsit(this.enumURL)) {
-                let content = fs.readFileSync(this.enumURL, { encoding: "utf-8" });
+                let content = fs.readFileSync(this.enumURL, {encoding: "utf-8"});
                 this._enum = JSON.parse(content);
             }
         }
@@ -89,19 +93,20 @@ export class DataModel {
 
     /**
      * 是否为常规类型
-     * @param typeStr 
-     * @returns 
+     * @param typeStr
+     * @returns
      */
-    public isConventionType(typeStr: string, codeLang: CodeLanguageEnum): boolean {
+    public isConventionType(typeStr: string, codeLang: CodeLang): boolean {
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 for (let typeEnumKey in TSTypeEnum) {
                     if (TSTypeEnum[typeEnumKey] == typeStr)
                         return true;
                 }
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 // TODO
                 break;
             }
@@ -111,40 +116,41 @@ export class DataModel {
 
     /**
      * 获取唯一主键的类型
-     * @param configName 
-     * @param configType 
-     * @returns 
+     * @param configName
+     * @param configType
+     * @returns
      */
-    public getConfigUniqueKeyType(configName: string, codeLang: CodeLanguageEnum, includeEnum: boolean = true) {
+    public getConfigUniqueKeyType(configName: string, codeLang: CodeLang, includeEnum = true) {
         let targetTypeEnum: any;
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 targetTypeEnum = TSTypeEnum;
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 targetTypeEnum = CSTypeEnum;
                 break;
             }
         }
 
-        let configRemark = this.remark[configName];
+        let configRemark: Remark = this.remark[configName];
 
-        if (configRemark.config_other_info.mainKeySubs.length == 1) {
-            let mainKeyField = configRemark[configRemark.config_other_info.mainKeyNames[0]];
+        if (configRemark.mainKeySubs.length == 1) {
+            let mainKeyField:RemarkField = configRemark.fields[configRemark.mainKeyNames[0]];
             if (includeEnum && mainKeyField.enum) {
                 return mainKeyField.enum;
             } else {
-                if (mainKeyField.fixedType) {
+                if (mainKeyField.type) {
                     // TS需要特殊处理 int
-                    if (mainKeyField.fixedType == "int") {
+                    if (mainKeyField.type == "int") {
                         switch (codeLang) {
-                            case CodeLanguageEnum.TS: {
+                            case CodeLang.TS: {
                                 return TSTypeEnum.Int;
                             }
                         }
                     }
-                    return mainKeyField.fixedType;
+                    return mainKeyField.type;
                 }
             }
         } else {
@@ -155,29 +161,32 @@ export class DataModel {
 
     /**
      * 获取固定类型
-     * @param configName 
-     * @param keyName 
-     * @returns 
+     * @param configName
+     * @param keyName
+     * @returns
      */
-    public getFixedType(configName: string, keyName: string, codeLang: CodeLanguageEnum) {
+    public getFixedType(configName: string, keyName: string, codeLang: CodeLang) {
         let targetTypeEnum: any;
 
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 targetTypeEnum = TSTypeEnum;
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 targetTypeEnum = CSTypeEnum;
                 break;
             }
         }
 
-        let configRemark = this.remark[configName];
-
-        let result = configRemark && configRemark[keyName].fixedType;
+        let configRemark: Remark = this.remark[configName];
+        let field: RemarkField = configRemark?.fields && configRemark.fields[keyName];
+        let result: any = field.type;
 
         if (result) {
+            result = CommonUtils.deepClone(result);
+
             let isArray = Array.isArray(result);
 
             // 方便转换，先转成数组
@@ -193,10 +202,10 @@ export class DataModel {
                     arrayDepth++;
                 }
                 if (arrayDepth) {
-                    let predixType = StringUtils.convertToUpperCamelCase(typeUseCalc);
+                    let predixType = StrUtils.convertToUpperCamelCase(typeUseCalc);
                     result[n] = targetTypeEnum[`${predixType}List${arrayDepth > 1 ? arrayDepth : ""}`];
                 } else {
-                    let predixType = StringUtils.convertToUpperCamelCase(type);
+                    let predixType = StrUtils.convertToUpperCamelCase(type);
                     result[n] = targetTypeEnum[`${predixType}`];
                 }
             }
@@ -210,9 +219,9 @@ export class DataModel {
     /**
      * 获取指定配置的指定fixed_key的任意一个值
      * （一般用来做值的类型判断）
-     * @param configName 
-     * @param keyName 
-     * @returns 
+     * @param configName
+     * @param keyName
+     * @returns
      */
     public getAnyDataValue(configName, keyName) {
         let result = '';
@@ -235,12 +244,12 @@ export class DataModel {
 
     /**
      * 获取配置的键的类型
-     * @param configName 
-     * @param keyName 
-     * @param configType TODO 这个还没做
-     * @returns 
+     * @param configName
+     * @param keyName
+     * @param codeLang
+     * @returns
      */
-    public getConfigKeyType(configName: string, keyName: string, codeLang: CodeLanguageEnum) {
+    public getConfigKeyType(configName: string, keyName: string, codeLang: CodeLang) {
         let result = this.getFixedType(configName, keyName, codeLang);
 
         if (result) {
@@ -259,8 +268,9 @@ export class DataModel {
                         }
                     }
                 }
+
                 switch (codeLang) {
-                    case CodeLanguageEnum.TS: {
+                    case CodeLang.TS: {
                         if (unify) {
                             return targetType + "[]";
                         } else {
@@ -268,14 +278,20 @@ export class DataModel {
                         }
                         break;
                     }
-                    case CodeLanguageEnum.CS: {
+                    case CodeLang.ETCS:
+                    case CodeLang.CS: {
                         if (unify) {
                             let typeEnumName;
                             for (let ten in CSTypeEnum) {
                                 if (CSTypeEnum[ten] == targetType)
                                     typeEnumName = ten;
                             }
-                            if (typeEnumName == CSTypeEnum.Bool || typeEnumName == CSTypeEnum.Int || typeEnumName == CSTypeEnum.Float || typeEnumName == CSTypeEnum.String) {
+                            if (
+                                targetType == CSTypeEnum.Bool
+                                || targetType == CSTypeEnum.Int
+                                || targetType == CSTypeEnum.Float
+                                || targetType == CSTypeEnum.String
+                            ) {
                                 return CSTypeEnum[typeEnumName + "List"];
                             } else {
                                 let typeEnumNameSplit = typeEnumName.split("List");
@@ -283,45 +299,49 @@ export class DataModel {
                             }
                         } else {
                             let rmk = this.remark[configName];
-                            let filePath = rmk?.config_other_info ? rmk.config_other_info.filePath : rmk?.filePath;
-                            console.log(cli.red(`C#不支持any类型！你清醒一点！表名：${configName}，字段：${keyName}，文件路径：${filePath}`));
+                            console.log(cli.red(`C#不支持Any类型！你清醒一点！表名：${configName}，字段：${keyName}，文件路径：${rmk?.filePath}`));
                         }
                         break;
                     }
                 }
             } else {
-
                 return result;
             }
         }
 
         result = this.getAnyDataValue(configName, keyName);
-        result = this.getValueType(result, codeLang);
+        result = this.getValueType(result, codeLang, false, configName, keyName);
+
         return result;
     }
 
     /**
      * 获取值类型
-     * @param value 
-     * @param jsonParse 
-     * @returns 
+     * @param value
+     * @param codeLang
+     * @param jsonParse
+     * @param configName
+     * @param keyName
+     * @returns
      */
-    public getValueType(value: any, codeLang: CodeLanguageEnum, jsonParse?: boolean) {
+    public getValueType(value: any, codeLang: CodeLang, jsonParse?: boolean, configName?: string, keyName?: string) {
         if (jsonParse) {
             try {
                 value = JSON.parse(value);
             } catch (e) {
-                console.log(cli.yellow("获取值类型，解析JSON出错，", value));
+                let rmk: Remark = this.remark[configName];
+                console.log(cli.red(`获取值类型，解析JSON出错！value = ${value}，表名：${configName}，字段：${keyName}，文件路径：${rmk?.filePath}`));
             }
         }
 
         let targetTypeEnum: any;
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 targetTypeEnum = TSTypeEnum;
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 targetTypeEnum = CSTypeEnum;
                 break;
             }
@@ -329,11 +349,12 @@ export class DataModel {
 
         if (value === "") {
             switch (codeLang) {
-                case CodeLanguageEnum.TS: {
+                case CodeLang.TS: {
                     return TSTypeEnum.Any;
                     break;
                 }
-                case CodeLanguageEnum.CS: {
+                case CodeLang.ETCS:
+                case CodeLang.CS: {
                     return CSTypeEnum.String;
                     break;
                 }
@@ -346,11 +367,12 @@ export class DataModel {
 
         if (typeof value == "number") {
             switch (codeLang) {
-                case CodeLanguageEnum.TS: {
+                case CodeLang.TS: {
                     return TSTypeEnum.Int;
                     break;
                 }
-                case CodeLanguageEnum.CS: {
+                case CodeLang.ETCS:
+                case CodeLang.CS: {
                     return CommonUtils.numIsInt(value) ? CSTypeEnum.Int : CSTypeEnum.Float;
                     break;
                 }
@@ -364,12 +386,14 @@ export class DataModel {
         if (Array.isArray(value)) {
             if (value.length == 0) {
                 switch (codeLang) {
-                    case CodeLanguageEnum.TS: {
+                    case CodeLang.TS: {
                         return TSTypeEnum.AnyList;
                         break;
                     }
-                    case CodeLanguageEnum.CS: {
-                        console.log(cli.red(`C#不支持解析空数组类型！`));
+                    case CodeLang.ETCS:
+                    case CodeLang.CS: {
+                        let rmk = this.remark[configName];
+                        console.log(cli.red(`C#不支持解析空数组类型！表名：${configName}，字段：${keyName}，文件路径：${rmk?.filePath}`));
                         break;
                     }
                 }
@@ -377,13 +401,34 @@ export class DataModel {
 
             let baseTypeNumData = this.getArrayInfo(value, codeLang);
 
-            let isStandardArray = Object.keys(baseTypeNumData).length <= 1;
+            let isStandardArray: boolean;
+            let includeTypes = Object.keys(baseTypeNumData);
+            switch (codeLang) {
+                case CodeLang.TS: {
+                    isStandardArray = Object.keys(baseTypeNumData).length <= 1;
+                    break;
+                }
+                case CodeLang.ETCS:
+                case CodeLang.CS: {
+                    if (
+                        includeTypes.length == 2
+                        && includeTypes.indexOf(CSTypeEnum.Int) != -1
+                        && includeTypes.indexOf(CSTypeEnum.Float) != -1
+                    ) {
+                        isStandardArray = true;
+                    } else {
+                        isStandardArray = includeTypes.length <= 1;
+                    }
+                    break;
+                }
+            }
+
             let maxDepth = 0;
             if (isStandardArray) {
                 let depths = [];
-                for (let baseTypeNumDataKey in baseTypeNumData) {
-                    let depth2NumObj = baseTypeNumData[baseTypeNumDataKey];
-                    for (let depth in depth2NumObj) {
+                for (let type in baseTypeNumData) {
+                    let typeNumInfo = baseTypeNumData[type];
+                    for (let depth in typeNumInfo) {
                         if (+depth > maxDepth) {
                             maxDepth = +depth;
                         }
@@ -397,27 +442,49 @@ export class DataModel {
                 }
             }
 
-            let elementType;
+            let onlyType: any;  // 唯一类型
 
             if (isStandardArray) {
-                let types = Object.keys(baseTypeNumData);
-                if (types.length == 1) {
-                    elementType = types[0];
+                switch (codeLang) {
+                    case CodeLang.TS: {
+                        onlyType = includeTypes[0];
+                        break;
+                    }
+                    case CodeLang.ETCS:
+                    case CodeLang.CS: {
+                        if (
+                            includeTypes.length == 2
+                        ) {
+                            if (
+                                includeTypes.indexOf(CSTypeEnum.Int) != -1
+                                && includeTypes.indexOf(CSTypeEnum.Float) != -1
+                            ) {
+                                onlyType = CSTypeEnum.Float;
+                            } else {
+                                onlyType = includeTypes[0];
+                            }
+                        } else {
+                            onlyType = includeTypes[0];
+                        }
+                        break;
+                    }
                 }
             }
 
             if (isStandardArray) {
                 let depthStr = maxDepth > 1 ? maxDepth : "";
-                let prefix = StringUtils.convertToUpperCamelCase(elementType);
+                let prefix = StrUtils.convertToUpperCamelCase(onlyType);
                 return targetTypeEnum[`${prefix}List${depthStr}`];
             } else {
                 switch (codeLang) {
-                    case CodeLanguageEnum.TS: {
+                    case CodeLang.TS: {
                         return TSTypeEnum.AnyList;
                         break;
                     }
-                    case CodeLanguageEnum.CS: {
-                        console.log(cli.red(`C#不支持Any类型的数组！`));
+                    case CodeLang.ETCS:
+                    case CodeLang.CS: {
+                        let rmk = this.remark[configName];
+                        console.log(cli.red(`C#不支持Any类型的数组！表名：${configName}，字段：${keyName}，文件路径：${rmk?.filePath}`));
                         break;
                     }
                 }
@@ -426,12 +493,14 @@ export class DataModel {
 
         if (value instanceof Object) {
             switch (codeLang) {
-                case CodeLanguageEnum.TS: {
+                case CodeLang.TS: {
                     return TSTypeEnum.Any;
                     break;
                 }
-                case CodeLanguageEnum.CS: {
-                    console.log(cli.red(`C#不支持Any类型！`));
+                case CodeLang.ETCS:
+                case CodeLang.CS: {
+                    let rmk = this.remark[configName];
+                    console.log(cli.red(`C#不支持Any类型！表名：${configName}，字段：${keyName}，文件路径：${rmk?.filePath}`));
                     break;
                 }
             }
@@ -440,12 +509,12 @@ export class DataModel {
 
     /**
      * 获取数组信息（内部值类型的计数、深度）
-     * @param array 
-     * @param record 
-     * @param depth 
-     * @returns 
+     * @param array
+     * @param record
+     * @param depth
+     * @returns
      */
-    private getArrayInfo(array: any, codeLang: CodeLanguageEnum, record?: any, depth?: number) {
+    private getArrayInfo(array: any, codeLang: CodeLang, record?: any, depth?: number) {
         if (record == null) {
             record = {};
         }
@@ -475,14 +544,14 @@ export class DataModel {
 
     /**
      * 获取父类（直到祖宗）
-     * @param configName 
-     * @returns 
+     * @param configName
+     * @returns
      */
     public getParents(configName: string, includeSelf?: boolean) {
         let result: string[];
-        let rmk = this.remark[configName];
+        let rmk: Remark = this.remark[configName];
         while (rmk) {
-            let parentConfigName = rmk.config_other_info.parent;
+            let parentConfigName = rmk.parent;
             if (parentConfigName) {
                 if (!result) {
                     result = [parentConfigName];
@@ -502,18 +571,23 @@ export class DataModel {
 
     /**
      * 获取配置的链接信息
-     * @param configName 
+     * @param configName
      */
     public getConfigLinks(configName: string) {
         let result: string[];
-        let configRmk = this.remark[configName];
-        for (let key in configRmk) {
-            let link = configRmk[key].link;
-            if (link) {
-                if (result) {
-                    result.push(link);
-                } else {
-                    result = [link];
+        let configRmk: Remark = this.remark[configName];
+        if (configRmk?.fields) {
+            for (let key in configRmk.fields) {
+                let field: RemarkField = configRmk.fields[key];
+                if (field) {
+                    let link = field.link;
+                    if (link) {
+                        if (result) {
+                            result.push(link);
+                        } else {
+                            result = [link];
+                        }
+                    }
                 }
             }
         }
@@ -522,8 +596,8 @@ export class DataModel {
 
     /**
      * 获取主键成员变量名称
-     * @param index 
-     * @returns 
+     * @param index
+     * @returns
      */
     public getMainKeyVarName(index: number) {
         return DataModel.MainKeyVarName + index;
@@ -531,24 +605,24 @@ export class DataModel {
 
     /**
      * 判断是不是主键
-     * @param configName 
-     * @param keyName 
-     * @returns 
+     * @param configName
+     * @param keyName
+     * @returns
      */
     public isMainKey(configName: string, keyName: string) {
         if (keyName.substring(0, DataModel.MainKeyVarName.length) == DataModel.MainKeyVarName)
             return true;
 
-        let configRmk = this.remark[configName];
-        if (configRmk?.config_other_info) {
-            return configRmk.config_other_info.mainKeyNames.indexOf(keyName) != -1;
+        let configRmk: Remark = this.remark[configName];
+        if (configRmk?.mainKeyNames) {
+            return configRmk.mainKeyNames.indexOf(keyName) != -1;
         }
         return false;
     }
 
     /**
      * 根据类型获取配置名称数组并裁剪对应“生成至”的数据，并排序
-     * @param type 
+     * @param exportID
      */
     public getConfigNamesAndCutDataByConfigType(exportID: number) {
         let result = Object.keys(this.originConfig);
@@ -556,14 +630,16 @@ export class DataModel {
         for (let n = result.length - 1; n >= 0; n--) {
             let configName = result[n];
             let config = this.originConfig[configName];
-            let configRemark = this.remark[configName];
+            let configRemark: Remark = this.remark[configName];
 
             let deleteConfig = false;
 
-            if (Object.keys(configRemark).length == 0) {
+            let fieldCount = configRemark?.fields ? Object.keys(configRemark).length : 0;
+
+            if (fieldCount == 0) {
                 deleteConfig = true;
             } else {
-                let sheetType = configRemark.config_other_info?.sheetType || configRemark.sheetType;
+                let sheetType = configRemark.sheetType;
 
                 let fixedKeys: string[];
                 if (sheetType == SheetType.Horizontal) {
@@ -574,15 +650,11 @@ export class DataModel {
 
                 for (let m = fixedKeys.length - 1; m >= 0; m--) {
                     let fixedKey = fixedKeys[m];
-                    let fixedRmk = configRemark[fixedKey];
-                    let fixedGenerate = fixedRmk.generate;
+                    let fixedRmk = configRemark.fields[fixedKey];
+                    let genField = fixedRmk.generate?.indexOf(exportID) >= 0;
 
                     // 判断生成至
-                    if (
-                        fixedGenerate
-                        && Array.isArray(fixedGenerate)
-                        && fixedGenerate.indexOf(exportID) == -1
-                    ) {
+                    if (!genField) {
                         // 裁剪数据
                         fixedKeys.splice(m, 1);
                         if (sheetType == SheetType.Horizontal) {
@@ -671,11 +743,11 @@ export class DataModel {
     /**
      * 获取配置的字段
      * 调用本函数前请保证已经执行过 getConfigNamesAndCutDataByConfigType()，因为要排除掉不生成的字段
-     * @param configName 
+     * @param configName
      * @param includeParent 是否包含父类
-     * @returns 
+     * @returns
      */
-    public getConfigFixedKeys(configName: string, codeLang: CodeLanguageEnum, includeParent?: boolean) {
+    public getConfigFixedKeys(configName: string, codeLang: CodeLang, includeParent?: boolean) {
         let configNames: string[] = [];
         if (includeParent) {
             configNames = this.getParents(configName);
@@ -691,8 +763,8 @@ export class DataModel {
 
         configNames.forEach(cfgName => {
             let cfg = this.originConfig[cfgName];
-            let cfgRmk = this.remark[cfgName];
-            let sheetType = cfgRmk.config_other_info?.sheetType || cfgRmk.sheetType;
+            let cfgRmk: Remark = this.remark[cfgName];
+            let sheetType = cfgRmk.sheetType;
             let fixedKeys: string[];
             if (sheetType == SheetType.Horizontal) {
                 fixedKeys = cfg.fixed_keys;
@@ -710,8 +782,9 @@ export class DataModel {
         return result;
     }
 
-    public getConfigCollectionTypeByIndex(configName: string, codeLang: CodeLanguageEnum, start?: number, end?: number) {
-        let mainKeyNames = this.remark[configName].config_other_info.mainKeyNames;
+    public getConfigCollectionTypeByIndex(configName: string, codeLang: CodeLang, start?: number, end?: number) {
+        let rmk: Remark = this.remark[configName];
+        let mainKeyNames = rmk.mainKeyNames;
         let itemClassName = configName + DataModel.Instance.config.export_item_suffix;
 
         if (!start)
@@ -721,11 +794,12 @@ export class DataModel {
 
         let collectionTypeName: string;
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 collectionTypeName = "Map";
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 collectionTypeName = "Dictionary";
             }
         }
@@ -747,16 +821,17 @@ export class DataModel {
 
     /**
      * 根据类型获取解析方法的字符串
-     * @param str 
-     * @returns 
+     * @param str
+     * @returns
      */
-    public getParseFuncNameByType(str: string, codeLang: CodeLanguageEnum) {
+    public getParseFuncNameByType(str: string, codeLang: CodeLang) {
         switch (codeLang) {
-            case CodeLanguageEnum.TS: {
+            case CodeLang.TS: {
                 console.log(cli.red("TS没有这个烦恼，是从哪里调进来的？！你清醒一点！"));
                 break;
             }
-            case CodeLanguageEnum.CS: {
+            case CodeLang.ETCS:
+            case CodeLang.CS: {
                 switch (str) {
                     case CSTypeEnum.Bool:
                         return "ConfigUtility.ParseBool({0})";
@@ -816,4 +891,28 @@ export class DataModel {
             }
         }
     }
+
+    /**
+     * 判断两个值是否相等
+     * @param a
+     * @param b
+     * @returns
+     */
+    valEquip(a: any, b: any) {
+        let aIsArray = Array.isArray(a);
+        let bIsArray = Array.isArray(b);
+
+        if (aIsArray && bIsArray) {
+            if (a == b)
+                return true;
+            // 如果是数组，暂时想不到更好的判断方法
+            return JSON.stringify(a) == JSON.stringify(b);
+        }
+
+        if (aIsArray || bIsArray)
+            return false;
+
+        return a == b;
+    }
+
 }

@@ -2,21 +2,21 @@ namespace GameConfig
 {
     public enum PetType
     {
-        /**
-         * 无
-         */
+        /// <summary>
+        /// 无
+        /// </summary>
         None = 0,
-        /**
-         * 攻击型
-         */
+        /// <summary>
+        /// 攻击型
+        /// </summary>
         Attack = 1,
-        /**
-         * 防御型
-         */
+        /// <summary>
+        /// 防御型
+        /// </summary>
         Defend = 2,
-        /**
-         * 辅助型
-         */
+        /// <summary>
+        /// 辅助型
+        /// </summary>
         Assist = 3
     }
 }

@@ -2,21 +2,21 @@ namespace GameConfig
 {
     public enum EquipPosition
     {
-        /**
-         * 无
-         */
+        /// <summary>
+        /// 无
+        /// </summary>
         None = 0,
-        /**
-         * 武器
-         */
+        /// <summary>
+        /// 武器
+        /// </summary>
         Weapon = 1,
-        /**
-         * 护甲
-         */
+        /// <summary>
+        /// 护甲
+        /// </summary>
         Armor = 2,
-        /**
-         * 饰品
-         */
+        /// <summary>
+        /// 饰品
+        /// </summary>
         Ornament = 3
     }
 }

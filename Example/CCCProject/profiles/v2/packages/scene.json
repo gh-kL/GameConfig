@@ -12,43 +12,58 @@
     ],
     "isIconGizmo3D": false,
     "iconGizmoSize": 2,
-    "isGridVisible": true
+    "isGridVisible": true,
+    "transformToolName": "position",
+    "pivot": "pivot",
+    "coordinate": "local",
+    "toolsVisibility3d": true
   },
   "camera": {
-    "fov": 45,
-    "far": 10000,
-    "near": 0.01,
     "color": [
       48,
       48,
       48,
       255
     ],
+    "fov": 45,
+    "far": 10000,
+    "near": 0.01,
     "wheelSpeed": 0.01,
     "wanderSpeed": 10,
     "enableAcceleration": true,
+    "size": "__default_design__",
     "far2D": 10000,
     "near2D": 1,
-    "wheelSpeed2D": 6
+    "wheelSpeed2D": 6,
+    "iso": 0,
+    "aperture": 19,
+    "shutter": 7
   },
   "camera-infos": {
     "c77ecaa8-c936-46c4-a5b0-98692673ed87": {
       "position": {
-        "x": 50,
-        "y": 50,
-        "z": 50
+        "x": 3175.6811957605664,
+        "y": 3175.6811957605655,
+        "z": 3175.6811957605637
       },
       "rotation": {
-        "x": -0.27984814233312133,
-        "y": 0.3647051996310009,
-        "z": 0.11591689595929514,
-        "w": 0.8804762392171493
+        "x": -0.2935780888715546,
+        "y": 0.3552621343397345,
+        "z": 0.11859608131827208,
+        "w": 0.8795087783159701
       },
       "viewCenter": {
+        "x": 121.40771502594998,
+        "y": -128.2930454223074,
+        "z": 11.819490533394855
+      },
+      "contentRect": {
         "x": 0,
         "y": 0,
-        "z": 0
-      }
+        "width": 941,
+        "height": 405
+      },
+      "scale": 1
     },
     "4a5c4668-1a2b-4264-9876-5a97065aa3d5": {
       "position": {
@@ -59,17 +74,43 @@
       "rotation": {
         "x": -0.27984814233312133,
         "y": 0.3647051996310009,
-        "z": 0.11591689595929514,
+        "z": 0.11591689595929512,
         "w": 0.8804762392171493
       },
       "viewCenter": {
         "x": 0,
         "y": 0,
         "z": 0
-      }
+      },
+      "contentRect": {
+        "x": 0,
+        "y": 0,
+        "width": 941,
+        "height": 405
+      },
+      "scale": 1
     }
   },
   "camera-uuids": [
+    "c77ecaa8-c936-46c4-a5b0-98692673ed87",
     "4a5c4668-1a2b-4264-9876-5a97065aa3d5"
-  ]
+  ],
+  "__version__": "1.0.0",
+  "builder": {},
+  "snap-configs": {
+    "position": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "rotation": 1,
+    "scale": 1,
+    "isPositionSnapEnabled": false,
+    "isRotationSnapEnabled": false,
+    "isScaleSnapEnabled": false
+  },
+  "rect-snap-configs": {
+    "enableSnapping": true,
+    "snapThreshold": 4
+  }
 }

@@ -1,0 +1,2 @@
+    private static {0}: BaseConfig<{1}, {2}>;
+    public static get {3}(): BaseConfig<{4}, {5}> { return this.{6}; }

@@ -1,6 +1,10 @@
 import fs from "fs";
 import {IOUtils} from "./IOUtils";
 import cli from "cli-color";
+import {StrUtils} from "./StrUtils";
+import {CodeLang} from "../CodeLang";
+import {DataModel} from "../DataModel";
+import {IConfigExport} from "../IConfigExport";
 
 /**
  * @Doc 通用工具
@@ -15,10 +19,9 @@ export class CommonUtils {
      * @param filename
      * @returns
      */
-    public static getTemplate(exportID: number, filename: string) {
-        let url = `templates/${exportID}/template/${filename}`;
+    public static getTemplate(expt: IConfigExport, filename: string) {
+        let url = `templates/${expt.template_name || expt.id}/template/${filename}`;
         if (IOUtils.fileOrFolderIsExsit(url)) {
-
             return fs.readFileSync(url, "utf-8");
         }
         console.log(cli.red(`找不到模板文件！${url}`));
@@ -69,6 +72,94 @@ export class CommonUtils {
         } else {
             return object;
         }
+    }
+
+    /**
+     * 转换字符串为对象
+     * @param str
+     * @param tidy
+     * @returns
+     */
+    public static convertStringToObj(str: string, tidy?: boolean): {
+        obj: any,
+        isString: boolean,
+        mayBeArray?: boolean,
+        mayBeObj?: boolean
+    } {
+        let result: any = {};
+
+        let obj: any;
+        let suc = false;
+
+        if (tidy && str && str.replace) {
+            str = str.replace(/\t/g, '').replace(/\r/g, '').replace(/\n/g, '');
+        }
+
+        try {
+            obj = JSON.parse(str);
+            suc = true;
+        } catch (err) {
+
+        }
+
+        result.obj = suc ? obj : str;
+        result.isString = typeof result.obj == "string";
+
+        // if (!suc && result.isString) {
+        //     let a = StringUtils.getStrCharNum(str, "[");
+        //     let b = StringUtils.getStrCharNum(str, "]");
+        //     if (a >= 2 && b >= 2) {
+        //         result.mayBeArray = true;
+        //     }
+
+        //     a = StringUtils.getStrCharNum(str, "{");
+        //     b = StringUtils.getStrCharNum(str, "}");
+        //     let c = StringUtils.getStrCharNum(str, ":");
+        //     if (a >= 1 && b >= 1 && c >= 1) {
+        //         result.mayBeObj = true;
+        //     }
+        // }
+
+        return result;
+    }
+
+    /**
+     * 获取注释字符串
+     * @param codeLang
+     * @param str
+     * @param indent
+     * @param tab
+     * @returns
+     */
+    public static getCommentStr(codeLang: CodeLang, str: string, indent = 0, tab?: boolean) {
+        if (str == null)
+            return "";
+        if (typeof str != "string")
+            str = str + "";
+        str.replace(/\r/, "");
+        let lines = str.split("\n");
+        let result = "";
+        switch (codeLang) {
+            case CodeLang.CS:
+            case CodeLang.ETCS: {
+                result += StrUtils.getIndentStr(indent) + "/// <summary>\n";
+                for (let n = 0; n < lines.length; n++) {
+                    result += StrUtils.getIndentStr(indent) + "/// " + lines[n] + "\n";
+                }
+                result += StrUtils.getIndentStr(indent, tab) + "/// </summary>";
+                break;
+            }
+            case CodeLang.TS: {
+                result += StrUtils.getIndentStr(indent) + "/**\n";
+                for (let n = 0; n < lines.length; n++) {
+                    result += StrUtils.getIndentStr(indent) + " * " + lines[n] + "\n";
+                }
+                result += StrUtils.getIndentStr(indent, tab) + " */";
+                break;
+            }
+        }
+
+        return result;
     }
 }
 

@@ -1,5 +1,5 @@
 {
-  "__version__": "1.0.6",
+  "__version__": "1.0.8",
   "modules": {
     "cache": {
       "base": {
@@ -98,6 +98,7 @@
       "gfx-webgl",
       "gfx-webgl2",
       "intersection-2d",
+      "light-probe",
       "marionette",
       "particle-2d",
       "physics-2d-box2d",
@@ -108,6 +109,7 @@
       "tween",
       "ui",
       "video",
+      "websocket",
       "webview"
     ],
     "noDeprecatedFeatures": {

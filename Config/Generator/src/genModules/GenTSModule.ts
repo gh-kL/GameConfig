@@ -1,14 +1,16 @@
 import cli from "cli-color";
 import path from "path";
-import { IOUtils } from "../utils/IOUtils";
-import { StringUtils } from "../utils/StringUtils";
-import { DataModel } from "../DataModel";
-import { CommonUtils } from "../utils/CommonUtils";
-import { TSTypeEnum } from "../TSTypeEnum";
-import { IConfigExport } from "../IConfigExport";
-import { CodeLanguageEnum } from "../CodeLanguageEnum";
-import { LineBreak } from "../utils/LineBreak";
-import { CodeWriter } from "../utils/CodeWriter";
+import {IOUtils} from "../utils/IOUtils";
+import {StrUtils} from "../utils/StrUtils";
+import {DataModel} from "../DataModel";
+import {CommonUtils} from "../utils/CommonUtils";
+import {TSTypeEnum} from "../TSTypeEnum";
+import {IConfigExport} from "../IConfigExport";
+import {CodeLang} from "../CodeLang";
+import {LineBreak} from "../utils/LineBreak";
+import {CodeWriter} from "../utils/CodeWriter";
+import {Remark} from "../Remark";
+import {RemarkField} from "../RemarkField";
 
 /**
  * @Doc 生成TS模块
@@ -18,23 +20,25 @@ import { CodeWriter } from "../utils/CodeWriter";
 export class GenTSModule {
     // ------------------began 单例 ------------------
     private static _instance: GenTSModule;
+
     public static get Instance() {
         if (this._instance == null) {
             this._instance = new GenTSModule();
         }
         return this._instance;
     }
+
     // ------------------ended 单例 ------------------
 
-    private _codeLang: CodeLanguageEnum;
+    private _codeLang: CodeLang;
     private _export: IConfigExport;
     private _configNames: string[];
     private _configSplitor: string;
 
     /**
      * 发布
-     * @param exportID 
-     * @returns 
+     * @param exportID
+     * @returns
      */
     public gen(exportID: number): boolean {
         this._export = DataModel.Instance.config.exports.find(e => e.id == exportID);
@@ -48,13 +52,13 @@ export class GenTSModule {
         IOUtils.makeDir(this._export.export_script_url);
 
         // 拷贝固定代码
-        IOUtils.copy(`templates/${this._export.id}/scripts/`, this._export.export_script_url);
+        IOUtils.copy(`templates/${this._export.template_name || this._export.id}/scripts/`, this._export.export_script_url);
 
         this._configNames = DataModel.Instance.getConfigNamesAndCutDataByConfigType(exportID);
 
         this._configSplitor = DataModel.Instance.config.export_data_splitor;
         if (DataModel.Instance.config.export_data_splitor_random_enabled) {
-            this._configSplitor = StringUtils.genPassword(8, true, true, false, true);
+            this._configSplitor = StrUtils.genPassword(8, true, true, false, true);
         }
 
         let flag = this.genEnum();
@@ -73,15 +77,16 @@ export class GenTSModule {
 
     /**
      * 生成枚举类
-     * @returns 
+     * @returns
      */
     private genEnum(): boolean {
-        let configEnumTemplate = CommonUtils.getTemplate(this._export.id, "ConfigEnum.txt");
+        let configEnumTemplate = CommonUtils.getTemplate(this._export, "ConfigEnum.txt");
 
         let enumNames = Object.keys(DataModel.Instance.enum);
         // 过滤掉不生成的
         enumNames = enumNames.filter(enumName => {
-            return !DataModel.Instance.remark[enumName].generate || DataModel.Instance.remark[enumName].generate.indexOf(this._export.id) >= 0;
+            let rrmk: Remark = DataModel.Instance.remark[enumName];
+            return rrmk?.generate?.indexOf(this._export.id) >= 0;
         });
 
         for (let idx = 0; idx < enumNames.length; idx++) {
@@ -90,9 +95,9 @@ export class GenTSModule {
 
             let cw = new CodeWriter();
             enumData.forEach((aData, n) => {
-                cw.add(1, `/**`);
-                cw.add(1, ` * ${aData.annotation}`);
-                cw.add(1, ` */`);
+                if (aData.annotation) {
+                    cw.addStr(CommonUtils.getCommentStr(this._codeLang, aData.annotation, 1) + "\n");
+                }
                 let isNumber = CommonUtils.numIsInt(+aData.value);
                 if (isNumber) {
                     cw.add(1, `${aData.key} = ${aData.value}`, false);
@@ -103,7 +108,7 @@ export class GenTSModule {
                     cw.add(0, `,`);
             });
 
-            let writeContent = StringUtils.format(configEnumTemplate,
+            let writeContent = StrUtils.format(configEnumTemplate,
                 enumName,
                 cw.content
             );
@@ -115,22 +120,19 @@ export class GenTSModule {
 
     /**
      * 生成Item类、竖表类
-     * @returns 
+     * @returns
      */
     private genItemAndVertical(): boolean {
-        let configItemTemplate = CommonUtils.getTemplate(this._export.id, "ConfigItem.txt");
-        let configSingleTemplate = CommonUtils.getTemplate(this._export.id, "ConfigSingle.txt");
+        let configItemTemplate = CommonUtils.getTemplate(this._export, "ConfigItem.txt");
+        let configSingleTemplate = CommonUtils.getTemplate(this._export, "ConfigSingle.txt");
 
         for (let n = 0; n < this._configNames.length; n++) {
             let configName = this._configNames[n];
             let cfg = DataModel.Instance.originConfig[configName];
-            let configRemark = DataModel.Instance.remark[configName];
-            let parentRemark = configRemark.config_other_info
-                && configRemark.config_other_info.parent
-                && DataModel.Instance.remark[configRemark.config_other_info.parent];
+            let configRemark: Remark = DataModel.Instance.remark[configName];
+            let parentRemark: Remark = configRemark.parent && DataModel.Instance.remark[configRemark.parent];
 
-            let parentItemName = parentRemark && (configRemark.config_other_info.parent + DataModel.Instance.config.export_item_suffix);
-            let coi = configRemark.config_other_info;
+            let parentItemName = parentRemark && (configRemark.parent + DataModel.Instance.config.export_item_suffix);
 
             if (cfg.fixed_keys) {
                 let uniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang);
@@ -145,21 +147,17 @@ export class GenTSModule {
                     extendsStr = ` extends ${parentItemName}`;
                 }
 
-                if (!configRemark.config_other_info.parent) {
-                    cwField.add(1, `/**`);
-                    cwField.add(1, ` * 唯一Key`);
-                    cwField.add(1, ` **/`);
+                if (!configRemark.parent) {
+                    cwField.addStr(CommonUtils.getCommentStr(this._codeLang, "唯一Key", 1) + "\n");
                     cwField.add(1, `readonly uniqueKey: ${uniqueKeyType};`);
                     // -------------------------- began 如果是多主键则生成额外的主键数据 --------------------------
-                    if (coi && !coi.isSingleMainKey) {
-                        let mainKeyNames = coi.mainKeyNames;
+                    if (!configRemark.isSingleMainKey) {
+                        let mainKeyNames = configRemark.mainKeyNames;
                         for (let mksIdx = 0; mksIdx < mainKeyNames.length; mksIdx++) {
                             let mainKeyName = mainKeyNames[mksIdx];
                             let mainKeyType = DataModel.Instance.getConfigKeyType(configName, mainKeyName, this._codeLang);
 
-                            cwField.add(1, `/**`);
-                            cwField.add(1, ` * 第${mksIdx + 1}主键`);
-                            cwField.add(1, ` **/`);
+                            cwField.addStr(CommonUtils.getCommentStr(this._codeLang, `第${mksIdx + 1}主键`, 1) + "\n");
                             cwField.add(1, `readonly ${DataModel.Instance.getMainKeyVarName(mksIdx + 1)}: ${mainKeyType};`);
                         }
                     }
@@ -171,43 +169,35 @@ export class GenTSModule {
 
                     // 排除掉父类的字段
                     if (parentRemark) {
-                        if (parentRemark[fixed_key]) {
+                        if (parentRemark?.fields && parentRemark.fields[fixed_key]) {
                             continue;
                         }
                     }
 
-                    let lowerCamelFixedKey = StringUtils.convertToLowerCamelCase(fixed_key);
+                    let lowerCamelFixedKey = StrUtils.convertToLowerCamelCase(fixed_key);
 
-                    let annotation;
-
-                    if (configRemark) {
-                        if (configRemark[fixed_key]) {
-                            annotation = configRemark[fixed_key].annotation;
-                        }
-                    }
-                    if (annotation) {
-                        cwField.add(1, `/**`);
-                        cwField.add(1, ` * ${annotation}`);
-                        cwField.add(1, ` **/`);
+                    let field: RemarkField = configRemark?.fields && configRemark.fields[fixed_key];
+                    if (field?.annotation) {
+                        cwField.addStr(CommonUtils.getCommentStr(this._codeLang, field.annotation, 1) + "\n");
                     }
 
                     let valType = DataModel.Instance.getConfigKeyType(configName, fixed_key, this._codeLang);
 
-                    if (configRemark[fixed_key] && configRemark[fixed_key].enum) {  // 处理枚举
+                    if (field?.enum) {  // 处理枚举
                         if (valType != TSTypeEnum.Int && valType != TSTypeEnum.String) {
                             console.log(cli.red("枚举的值不是整数或字符串！-> " + valType + " " + TSTypeEnum.Int + " " + configName + " -> " + fixed_key));
                             return false;
                         }
-                        valType = configRemark[fixed_key].enum;
+                        valType = field.enum;
                         cwField.add(1, `readonly ${lowerCamelFixedKey}: ${valType};`, false);
                         let importStr = `import { ${valType} } from "./${valType}";`;
                         if (cwImport.content.indexOf(importStr) == -1) {
                             cwImport.add(0, importStr);
                         }
-                    } else if (configRemark[fixed_key] && configRemark[fixed_key].link) {    // 处理表连接
-                        let linkConfigName = configRemark[fixed_key].link;
+                    } else if (field?.link) {    // 处理表连接
+                        let linkConfigName = field.link;
                         let linkedConfigItemName = linkConfigName + DataModel.Instance.config.export_item_suffix;
-                        if (configRemark[fixed_key].linkIsArray) {   // 处理表连接（数组形式）
+                        if (field.linkIsArray) {   // 处理表连接（数组形式）
                             if (valType == TSTypeEnum.IntList || valType == TSTypeEnum.StringList) {
                                 cwField.add(1, `readonly ${lowerCamelFixedKey}: ${linkedConfigItemName}[];`, false);
                             } else {
@@ -234,13 +224,13 @@ export class GenTSModule {
                     cwImport.newLine();
                 }
 
-                let writeContent = StringUtils.format(configItemTemplate,
+                let writeContent = StrUtils.format(configItemTemplate,
                     cwImport.content,
                     itemClassName + extendsStr,
                     cwField.content,
                 );
 
-                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + DataModel.Instance.config.export_item_suffix + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.config_other_info.sheetType})脚本成功！-> {0}`);
+                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + DataModel.Instance.config.export_item_suffix + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.sheetType})脚本成功！-> {0}`);
             } else {
 
                 let cwField = new CodeWriter();
@@ -250,7 +240,12 @@ export class GenTSModule {
                 for (const fixed_key in cfg) {
                     let valType = DataModel.Instance.getConfigKeyType(configName, fixed_key, this._codeLang);
 
-                    let lowerCamelFixedKey = StringUtils.convertToLowerCamelCase(fixed_key);
+                    let field: RemarkField = configRemark.fields && configRemark.fields[fixed_key];
+                    if (field?.annotation) {
+                        cwField.addStr(CommonUtils.getCommentStr(this._codeLang, field.annotation, 1) + "\n");
+                    }
+
+                    let lowerCamelFixedKey = StrUtils.convertToLowerCamelCase(fixed_key);
 
                     cwField.add(1, `readonly ${lowerCamelFixedKey}: ${valType};`, false);
 
@@ -260,12 +255,12 @@ export class GenTSModule {
                     curNum++;
                 }
 
-                let writeContent = StringUtils.format(configSingleTemplate,
+                let writeContent = StrUtils.format(configSingleTemplate,
                     "",
                     configName,
                     cwField.content,
                 );
-                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.config_other_info.sheetType})脚本成功！-> {0}`);
+                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置(${configRemark.sheetType})脚本成功！-> {0}`);
             }
         }
 
@@ -274,33 +269,28 @@ export class GenTSModule {
 
     /**
      * 生成Manager类
-     * @returns 
+     * @returns
      */
     private genMgr(): boolean {
-        let configManagerTemplate = CommonUtils.getTemplate(this._export.id, "ConfigMgr.txt");
+        let configManagerTemplate = CommonUtils.getTemplate(this._export, "ConfigMgr.txt");
         let cwImport = new CodeWriter();
         let cwField = new CodeWriter();
         let cwParse = new CodeWriter();
 
+        let configVarTemplate = CommonUtils.getTemplate(this._export, "ConfigVar.txt");
+        let configItemVarTemplate = CommonUtils.getTemplate(this._export, "ConfigItemVar.txt");
+
         for (let idx = 0; idx < this._configNames.length; idx++) {
             const configName = this._configNames[idx];
             let cfg = DataModel.Instance.originConfig[configName];
-            let configRemark = DataModel.Instance.remark[configName];
+            let configRemark: Remark = DataModel.Instance.remark[configName];
 
             let parents = DataModel.Instance.getParents(configName);
             let parentLayer = parents ? parents.length : 0;
-            let parentRmks = [];
-            if (parentLayer) {
-                parents.forEach(pa => {
-                    parentRmks.push(DataModel.Instance.remark[pa]);
-                });
-            }
-
-            let coi = configRemark.config_other_info;
 
             let itemClassName = configName + DataModel.Instance.config.export_item_suffix;
 
-            let lowerCamelConfigName = StringUtils.convertToLowerCamelCase(configName);
+            let lowerCamelConfigName = StrUtils.convertToLowerCamelCase(configName);
 
             cwParse.add(2, `// ${configName}`);
             cwParse.add(2, `section = sections[${idx}];`);
@@ -320,15 +310,22 @@ export class GenTSModule {
                 }
 
                 let idxOffset = 1;
-                if (coi && !coi.isSingleMainKey) {
-                    let mainKeyNames = coi.mainKeyNames;
+                if (!configRemark.isSingleMainKey) {
+                    let mainKeyNames = configRemark.mainKeyNames;
                     idxOffset = mainKeyNames.length + 1;
                 }
 
-                if (!parentLayer) {
-                    cwField.add(1, `private static _${lowerCamelConfigName}: BaseConfig<${uniqueKeyType}, ${itemClassName}>;`);
-                    cwField.add(1, `public static get ${configName}(): BaseConfig<${uniqueKeyType}, ${itemClassName}> { return this._${lowerCamelConfigName}; }`);
-                }
+                // if (!parentLayer) {
+                cwField.add(0, StrUtils.format(configVarTemplate,
+                    `_${lowerCamelConfigName}`,
+                    uniqueKeyType,
+                    itemClassName,
+                    configName,
+                    uniqueKeyType,
+                    itemClassName,
+                    `_${lowerCamelConfigName}`
+                ));
+                // }
 
                 cwParse.add(2, `totalLength = section.length;`);
                 cwParse.add(2, `nAdd = ${fixed_keys.length + idxOffset};`);
@@ -336,8 +333,9 @@ export class GenTSModule {
                 let bestParentConfigVarName: string;
 
                 if (parentLayer) {
-                    bestParentConfigVarName = StringUtils.convertToLowerCamelCase(parents[parents.length - 1], true);
+                    bestParentConfigVarName = StrUtils.convertToLowerCamelCase(parents[parents.length - 1], true);
                     cwParse.add(2, `let map${idx} = this.${bestParentConfigVarName};`);
+                    cwParse.add(2, `let map${idx}_self = new Map<${uniqueKeyType}, ${itemClassName}>();`);
                 } else {
                     cwParse.add(2, `let map${idx} = new Map<${uniqueKeyType}, ${itemClassName}>();`);
                 }
@@ -357,8 +355,8 @@ export class GenTSModule {
                 let first_unique_keys = Object.keys(cfg.data)[0];
                 let valType = isNaN(+first_unique_keys) ? TSTypeEnum.String : TSTypeEnum.Int;
 
-                if (coi && !coi.isSingleMainKey) {
-                    let mainKeyNames = coi.mainKeyNames;
+                if (!configRemark.isSingleMainKey) {
+                    let mainKeyNames = configRemark.mainKeyNames;
                     for (let mksIdx = 0; mksIdx < mainKeyNames.length; mksIdx++) {
                         let mainKeyVarName = DataModel.Instance.getMainKeyVarName(mksIdx + 1);
                         if (parentLayer) {
@@ -377,13 +375,14 @@ export class GenTSModule {
                             let fixed_key = parentFixedKeys[m];
                             if (addedFixedKeys.indexOf(fixed_key) != -1)
                                 continue;
-                            let varName = StringUtils.convertToLowerCamelCase(fixed_key);
+                            let varName = StrUtils.convertToLowerCamelCase(fixed_key);
                             cwParse.add(0, `${varName}: parentItem${n + 1}.${varName}, `, false);
                             addedFixedKeys.push(fixed_key);
                         }
                     });
                 }
 
+                let hasAppened: boolean;
                 for (let idx2 = 0; idx2 < fixed_keys.length; idx2++) {
                     let fixed_key = fixed_keys[idx2];
 
@@ -401,32 +400,33 @@ export class GenTSModule {
                         continue;
 
                     let valType = DataModel.Instance.getConfigKeyType(configName, fixed_key, this._codeLang);
+                    let field: RemarkField = configRemark?.fields && configRemark.fields[fixed_key];
 
-                    if (configRemark[fixed_key] && configRemark[fixed_key].enum) {  // 处理枚举
+                    if (field?.enum) {  // 处理枚举
                         if (valType != TSTypeEnum.Int && valType != TSTypeEnum.String) {
-                            console.log(cli.red(`枚举的数值不是整数也不是字符串，这是不被允许的! 表名：${configName}，字段：${fixed_key}，文件路径：${configRemark.config_other_info.filePath}`));
+                            console.log(cli.red(`枚举的数值不是整数也不是字符串，这是不被允许的! 表名：${configName}，字段：${fixed_key}，文件路径：${configRemark.filePath}`));
                             return false;
                         }
-                        cwParse.add(0, `${StringUtils.convertToLowerCamelCase(fixed_key)}: section[n + ${idx2 + idxOffset}]`, false);
-                    } else if (configRemark[fixed_key].link) {    // 处理表连接
-                        let linkConfigName = configRemark[fixed_key].link;
-                        let linkConfigNameLower = StringUtils.convertToLowerCamelCase(linkConfigName);
-                        if (configRemark[fixed_key].linkIsArray) {   // 处理表连接（数组形式）
+                        cwParse.add(0, `${StrUtils.convertToLowerCamelCase(fixed_key)}: section[n + ${idx2 + idxOffset}]`, false);
+                    } else if (field?.link) {    // 处理表连接
+                        let linkConfigName = field.link;
+                        let linkConfigNameLower = StrUtils.convertToLowerCamelCase(linkConfigName);
+                        if (field.linkIsArray) {   // 处理表连接（数组形式）
                             if (valType == TSTypeEnum.IntList || valType == TSTypeEnum.StringList) {
-                                let linkedConfigUniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(configRemark[fixed_key].link, this._codeLang);
-                                let linkedConfigItemName = configRemark[fixed_key].link + DataModel.Instance.config.export_item_suffix;
-                                cwParse.add(0, `${StringUtils.convertToLowerCamelCase(fixed_key)}: this.getLinkedConfigs<${linkedConfigUniqueKeyType}, ${linkedConfigItemName}>(section[n + ${idx2 + idxOffset}], this.${configRemark[fixed_key].link})`, false);
+                                let linkedConfigUniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(field.link, this._codeLang);
+                                let linkedConfigItemName = field.link + DataModel.Instance.config.export_item_suffix;
+                                cwParse.add(0, `${StrUtils.convertToLowerCamelCase(fixed_key)}: this.getLinkedConfigs<${linkedConfigUniqueKeyType}, ${linkedConfigItemName}>(section[n + ${idx2 + idxOffset}], this.${field.link})`, false);
                             } else {
-                                console.log(cli.red(`链接的值不是整数数组或字符串数组！表名：${configName}，字段：${fixed_key}，文件路径：${configRemark.config_other_info.filePath}`));
+                                console.log(cli.red(`链接的值不是整数数组或字符串数组！表名：${configName}，字段：${fixed_key}，文件路径：${configRemark.filePath}`));
                                 // FIXME
                                 console.log(valType);
                                 return false;
                             }
                         } else {    // 处理表连接（非数组形式）
-                            cwParse.add(0, `${StringUtils.convertToLowerCamelCase(fixed_key)}: this._${linkConfigNameLower}.get(section[n + ${idx2 + idxOffset}])`, false);
+                            cwParse.add(0, `${StrUtils.convertToLowerCamelCase(fixed_key)}: this._${linkConfigNameLower}.get(section[n + ${idx2 + idxOffset}])`, false);
                         }
                     } else {    // 常规
-                        cwParse.add(0, `${StringUtils.convertToLowerCamelCase(fixed_key)}: section[n + ${idx2 + idxOffset}]`, false);
+                        cwParse.add(0, `${StrUtils.convertToLowerCamelCase(fixed_key)}: section[n + ${idx2 + idxOffset}]`, false);
                     }
 
                     if (idx2 == fixed_keys.length - 1) {
@@ -434,31 +434,45 @@ export class GenTSModule {
                     } else {
                         cwParse.add(0, `, `, false);
                     }
+                    hasAppened = true;
+                }
+
+                if (!hasAppened) {
+                    cwParse.add(0, ` };`);
                 }
 
                 if (!parentLayer) {
                     cwParse.add(3, `map${idx}.set(item.uniqueKey, item);`);
                 } else {
                     cwParse.add(3, `map${idx}.data.set(item.uniqueKey, item);`);
+                    cwParse.add(3, `map${idx}_self.set(item.uniqueKey, item);`);
                 }
                 cwParse.add(2, `}`);
 
                 if (!parentLayer) {
                     cwParse.add(2, `this._${lowerCamelConfigName} = new BaseConfig<${uniqueKeyType}, ${itemClassName}>("${configName}", map${idx});`);
+                } else {
+                    cwParse.add(2, `this._${lowerCamelConfigName} = new BaseConfig<${uniqueKeyType}, ${itemClassName}>("${configName}", map${idx}_self);`);
                 }
 
                 // -------------------------- began 如果是多主键则生成额外的数据集合与解析 --------------------------
 
-                if (coi && !coi.isSingleMainKey) {
+                if (!configRemark.isSingleMainKey) {
                     cwField.newLine();
-                    let mainKeyNames = coi.mainKeyNames;
+                    let mainKeyNames = configRemark.mainKeyNames;
 
                     let collectionTypeStr = DataModel.Instance.getConfigCollectionTypeByIndex(configName, this._codeLang);
 
                     let varName = `_${lowerCamelConfigName}${DataModel.Instance.config.export_collection_suffix}`;
 
-                    cwField.add(1, `private static ${varName}: ${collectionTypeStr};`);
-                    cwField.add(1, `public static get ${configName}${DataModel.Instance.config.export_collection_suffix}(): ${collectionTypeStr} { return this.${varName}; };`);
+                    cwField.add(0, StrUtils.format(
+                        configItemVarTemplate,
+                        varName,
+                        collectionTypeStr,
+                        configName + DataModel.Instance.config.export_collection_suffix,
+                        collectionTypeStr,
+                        varName,
+                    ));
 
                     cwParse.newLine();
 
@@ -516,15 +530,21 @@ export class GenTSModule {
                     cwImport.add(0, importStr);
                 }
 
-                cwField.add(1, `private static _${lowerCamelConfigName}: ${configName};`);
-                cwField.add(1, `public static get ${configName}(): ${configName} { return this._${lowerCamelConfigName}; };`);
+                cwField.add(0, StrUtils.format(
+                    configItemVarTemplate,
+                    `_${lowerCamelConfigName}`,
+                    configName,
+                    configName,
+                    configName,
+                    `_${lowerCamelConfigName}`,
+                ));
 
                 fixed_keys = Object.keys(cfg);
 
                 cwParse.add(2, `this._${lowerCamelConfigName} = { configName: "${configName}", `, false);
 
                 fixed_keys.forEach((fixed_key, idx2) => {
-                    cwParse.addStr(`${StringUtils.convertToLowerCamelCase(fixed_key)}: section[${idx2}]`);
+                    cwParse.addStr(`${StrUtils.convertToLowerCamelCase(fixed_key)}: section[${idx2}]`);
                     if (idx2 == fixed_keys.length - 1) {
                         cwParse.add(0, ` };`);
                     } else {
@@ -539,7 +559,7 @@ export class GenTSModule {
             }
         }
 
-        let writeContent = StringUtils.format(configManagerTemplate,
+        let writeContent = StrUtils.format(configManagerTemplate,
             cwImport.content,
             cwField.content,
             this._configSplitor,
@@ -553,10 +573,11 @@ export class GenTSModule {
 
     /**
      * 生成配置文本
-     * @returns 
+     * @returns
      */
     private genConfigText(): boolean {
         let finalConfig = [];
+
         for (let idx = 0; idx < this._configNames.length; idx++) {
             const configName = this._configNames[idx];
             let cfg = DataModel.Instance.originConfig[configName];
@@ -569,34 +590,47 @@ export class GenTSModule {
 
             if (fixed_keys) {
                 let data = cfg.data;
+
                 for (const uniqueKey in data) {
                     let dat = data[uniqueKey];
                     let uKey: any = !isNaN(+uniqueKey) ? +uniqueKey : uniqueKey;
                     finalConfig.push(uKey);
                     let uKeySplit = isNaN(+uniqueKey) && uKey.split("_");
 
+                    let rrrmk: Remark = DataModel.Instance.remark[configName];
+
                     if (
                         uKeySplit
                         && uKeySplit.length > 1
-                        && DataModel.Instance.remark[configName]
-                        && DataModel.Instance.remark[configName].config_other_info
-                        && DataModel.Instance.remark[configName].config_other_info.mainKeySubs
-                        && uKeySplit.length == DataModel.Instance.remark[configName].config_other_info.mainKeySubs.length
+                        && rrrmk.mainKeySubs
+                        && uKeySplit.length == rrrmk.mainKeySubs.length
                     ) {
                         uKeySplit.forEach(cKey => {
                             cKey = !isNaN(+cKey) ? +cKey : cKey;
+                            // DataModel.Instance.remark[configName]
                             finalConfig.push(cKey);
                         });
                     }
 
                     for (let n = 0; n < dat.length; n++) {
                         let val = dat[n];
+
+                        // let fieldName = fixed_keys[n];
+                        // let fieldRmk = DataModel.Instance.remark[configName][fieldName];
+                        // let fieldType = fieldRmk.fixedType;
+                        // console.log(fieldType);
+
                         finalConfig.push(val);
                     }
                 }
             } else {
                 for (const fixed_key in cfg) {
                     let val = cfg[fixed_key];
+
+                    // let fieldRmk = DataModel.Instance.remark[configName][fixed_key];
+                    // let fieldType = fieldRmk.fixedType;
+                    // console.log(fieldType);
+
                     finalConfig.push(val);
                 }
             }

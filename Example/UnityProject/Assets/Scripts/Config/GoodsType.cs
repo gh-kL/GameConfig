@@ -2,21 +2,21 @@ namespace GameConfig
 {
     public enum GoodsType
     {
-        /**
-         * 无
-         */
+        /// <summary>
+        /// 无
+        /// </summary>
         None = 0,
-        /**
-         * 道具
-         */
+        /// <summary>
+        /// 道具
+        /// </summary>
         Item = 1,
-        /**
-         * 药品
-         */
+        /// <summary>
+        /// 药品
+        /// </summary>
         Medicine = 2,
-        /**
-         * 装备
-         */
+        /// <summary>
+        /// 装备
+        /// </summary>
         Equip = 3
     }
 }

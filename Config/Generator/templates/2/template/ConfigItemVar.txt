@@ -1,0 +1,2 @@
+    private static {0}: {1};
+    public static get {2}(): {3} { return this.{4}; };

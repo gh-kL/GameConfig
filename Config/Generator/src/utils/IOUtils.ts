@@ -1,7 +1,7 @@
 import cli from "cli-color";
 import fs from "fs";
 import path from "path";
-import { StringUtils } from "./StringUtils";
+import { StrUtils } from "./StrUtils";
 import EncLatin1 from "crypto-js/enc-latin1";
 import EncHex from "crypto-js/enc-hex";
 import MD5 from "crypto-js/md5";
@@ -216,7 +216,7 @@ export class IOUtils {
         if (lineBreak != null) {
             switch (lineBreak) {
                 case LineBreak.CRLF: {
-                    let pwd = StringUtils.genPassword(8);
+                    let pwd = StrUtils.genPassword(8);
                     content = content.replace(/\r\n/g, pwd);
                     content = content.replace(/\n/g, `\r\n`);
                     content = content.replace(/\r/g, ``);
@@ -239,11 +239,11 @@ export class IOUtils {
                 }
             );
             if (succeedLog) {
-                console.log(cli.green(StringUtils.format(succeedLog, writePath)));
+                console.log(cli.green(StrUtils.format(succeedLog, writePath)));
             }
         } catch (error) {
             if (failedLog) {
-                console.log(cli.red(StringUtils.format(failedLog, writePath, error || "")));
+                console.log(cli.red(StrUtils.format(failedLog, writePath, error || "")));
             } else if (failedLog == null) {
                 throw error;
             }

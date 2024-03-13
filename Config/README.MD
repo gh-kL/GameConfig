@@ -190,6 +190,7 @@ this.btn.text = config.langId.cn;
         enabled: "启用（控制是否生成配置）",
         code_language: "代码语言",
         script_suffix: "脚本文件后缀（扩展名）",
+        template_name: "模板文件夹名称（若不填则按ID取模板）",
         force_make_dir: "强制创建路径",
         export_url: "配置文件导出路径",
         export_script_url: "配置脚本导出路径",

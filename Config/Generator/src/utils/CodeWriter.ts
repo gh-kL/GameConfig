@@ -1,12 +1,12 @@
-import { LineBreak } from "./LineBreak";
+import {LineBreak} from "./LineBreak";
+import {StrUtils} from "./StrUtils";
 
 export class CodeWriter {
-    public singleIndent: string = "    ";
-
     private _lineBreak: LineBreak;
     public get lineBreak() {
         return this._lineBreak;
     }
+
     public set lineBreak(value: LineBreak) {
         this._lineBreak = value;
         switch (value) {
@@ -30,6 +30,7 @@ export class CodeWriter {
     public get content() {
         return this._content;
     }
+
     private _addCount: number = 0;
     public get addCount() {
         return this._addCount;
@@ -40,13 +41,7 @@ export class CodeWriter {
     }
 
     public add(indent: number, str: string, newLine: number | boolean = 1) {
-        let indentStr = "";
-        while (indent > 0) {
-            indentStr += this.singleIndent;
-            indent--;
-        }
-
-        this._content += indentStr + str;
+        this._content += StrUtils.getIndentStr(indent) + str;
 
         if (typeof newLine == "number") {
             if (newLine > 0) {

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace GameConfig
 {
-    public static class ConfigManager
+    public static class ConfigMgr
     {
 {0}
 

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace GameConfig
 {
-    public static class ConfigManager
+    public static class ConfigMgr
     {
         public static BaseConfig<int, PetConfigItem> PetConfig { private set; get; }
         public static BaseConfig<string, PetStepLvConfigItem> PetStepLvConfig { private set; get; }
@@ -13,7 +13,7 @@ namespace GameConfig
         public static BaseConfig<string, AttrField2IDConfigItem> AttrField2IDConfig { private set; get; }
         public static BaseConfig<int, AttrConfigItem> AttrConfig { private set; get; }
         public static BaseConfig<int, GoodsConfigItem> GoodsConfig { private set; get; }
-
+        public static BaseConfig<int, EquipConfigItem> EquipConfig { private set; get; }
         public static KVConfig KVConfig { private set; get; }
 
         public static void Init(string configPath)
@@ -100,13 +100,15 @@ namespace GameConfig
             section = sections[5];
             lines = Regex.Split(section, "\r\n");
             var dict5 = goodsConfigData;
+            Dictionary<int, EquipConfigItem> dict5_self = new Dictionary<int, EquipConfigItem>();
             for (int n = 0; n < lines.Length - 1; n += 4)
             {
                 var parentItem1 = dict5[ConfigUtility.ParseInt(lines[n])] as GoodsConfigItem;
                 var item = new EquipConfigItem(ConfigUtility.ParseInt(lines[n]), parentItem1.Id, parentItem1.Name, parentItem1.Color, parentItem1.Type, parentItem1.SellPrice, parentItem1.Desc, (EquipPosition) ConfigUtility.ParseInt(lines[n + 2]), ConfigUtility.ParseIntList2(lines[n + 3]));
                 dict5[item.UniqueKey] = item;
+                dict5_self[item.UniqueKey] = item;
             }
-
+            EquipConfig = new BaseConfig<int, EquipConfigItem>("EquipConfig", dict5_self);
 
             // KVConfig
             section = sections[6];

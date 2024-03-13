@@ -27,6 +27,8 @@ export class ConfigMgr {
     private static _goodsConfig: BaseConfig<number, GoodsConfigItem>;
     public static get GoodsConfig(): BaseConfig<number, GoodsConfigItem> { return this._goodsConfig; }
 
+    private static _equipConfig: BaseConfig<number, EquipConfigItem>;
+    public static get EquipConfig(): BaseConfig<number, EquipConfigItem> { return this._equipConfig; }
 
     private static _kVConfig: KVConfig;
     public static get KVConfig(): KVConfig { return this._kVConfig; };
@@ -132,11 +134,14 @@ export class ConfigMgr {
         totalLength = section.length;
         nAdd = 4;
         let map5 = this._goodsConfig;
+        let map5_self = new Map<number, EquipConfigItem>();
         for (let n = 0; n < totalLength; n += nAdd) {
             let parentItem1 = this._goodsConfig.get(section[n]) as GoodsConfigItem;
             let item: EquipConfigItem = { uniqueKey: parentItem1.uniqueKey, id: parentItem1.id, name: parentItem1.name, color: parentItem1.color, type: parentItem1.type, sellPrice: parentItem1.sellPrice, desc: parentItem1.desc, position: section[n + 2], attr: section[n + 3] };
             map5.data.set(item.uniqueKey, item);
+            map5_self.set(item.uniqueKey, item);
         }
+        this._equipConfig = new BaseConfig<number, EquipConfigItem>("EquipConfig", map5_self);
 
         // KVConfig
         section = sections[6];

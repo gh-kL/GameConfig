@@ -1,13 +1,14 @@
-import { DataModel } from "./DataModel";
-import { GenOriginModule } from "./genModules/GenOriginModule";
+import {DataModel} from "./DataModel";
+import {GenOriginModule} from "./genModules/GenOriginModule";
 import cli from "cli-color";
 import uglifyjs from "uglify-js";
-import { GenTSModule } from "./genModules/GenTSModule";
-import { GenCSModule } from "./genModules/GenCSModule";
-import { IOUtils } from "./utils/IOUtils";
+import {GenTSModule} from "./genModules/GenTSModule";
+import {GenCSModule} from "./genModules/GenCSModule";
+import {IOUtils} from "./utils/IOUtils";
 import fs from "fs";
 import path from "path";
-import { CodeLanguageEnum } from "./CodeLanguageEnum";
+import {CodeLang} from "./CodeLang";
+import {GenETCSModule} from "./genModules/GenETCSModule";
 
 DataModel.Instance.reset();
 let genResult = GenOriginModule.Instance.gen();
@@ -31,6 +32,7 @@ if (genResult) {
                 continue;
             }
         }
+
         if (!IOUtils.fileOrFolderIsExsit(configDir)) {
             if (expt.force_make_dir) {
                 IOUtils.makeDir(configDir);
@@ -43,15 +45,19 @@ if (genResult) {
         DataModel.Instance.reset();
 
         switch (expt.code_language) {
-            case CodeLanguageEnum.CS:{
+            case CodeLang.CS: {
                 genResult = GenCSModule.Instance.gen(expt.id);
                 break;
             }
-            case CodeLanguageEnum.TS:{
+            case CodeLang.TS: {
                 genResult = GenTSModule.Instance.gen(expt.id);
                 break;
             }
-            default:{
+            case CodeLang.ETCS: {
+                genResult = GenETCSModule.Instance.gen(expt.id);
+                break;
+            }
+            default: {
                 console.log(cli.red(`${expt.id} 发布失败，路径不存在：${configDir}`));
                 break;
             }
@@ -68,7 +74,7 @@ let jsFiles: string[] = [];
 IOUtils.findFile("dist", [".js", ".JS"], jsFiles);
 for (let n = jsFiles.length - 1; n >= 0; n--) {
     let jsFile = jsFiles[n];
-    let jsCode = fs.readFileSync(jsFile, { encoding: "utf-8" });
+    let jsCode = fs.readFileSync(jsFile, {encoding: "utf-8"});
     let option = {
         mangle: {
             toplevel: true,

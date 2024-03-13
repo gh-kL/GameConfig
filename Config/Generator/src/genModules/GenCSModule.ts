@@ -1,18 +1,19 @@
 import cli from "cli-color";
 import path from "path";
-import { IOUtils } from "../utils/IOUtils";
-import { StringUtils } from "../utils/StringUtils";
-import { DataModel } from "../DataModel";
+import {IOUtils} from "../utils/IOUtils";
+import {StrUtils} from "../utils/StrUtils";
+import {DataModel} from "../DataModel";
 import fs from "fs";
-import { CommonUtils } from "../utils/CommonUtils";
-import { CSTypeEnum } from "../CSTypeEnum";
-import { IConfigExport } from "../IConfigExport";
-import { CodeLanguageEnum } from "../CodeLanguageEnum";
-import { LineBreak } from "../utils/LineBreak";
-import { CodeWriter } from "../utils/CodeWriter";
+import {CommonUtils} from "../utils/CommonUtils";
+import {CSTypeEnum} from "../CSTypeEnum";
+import {IConfigExport} from "../IConfigExport";
+import {CodeLang} from "../CodeLang";
+import {LineBreak} from "../utils/LineBreak";
+import {CodeWriter} from "../utils/CodeWriter";
 import encBase64 from "crypto-js/enc-base64";
 import encUTF8 from "crypto-js/enc-utf8";
-import hmacSHA512 from 'crypto-js/hmac-sha512';
+import {Remark} from "../Remark";
+import {RemarkField} from "../RemarkField";
 
 /**
  * @Doc 生成CS模块
@@ -22,23 +23,25 @@ import hmacSHA512 from 'crypto-js/hmac-sha512';
 export class GenCSModule {
     // ------------------began 单例 ------------------
     private static _instance: GenCSModule;
+
     public static get Instance() {
         if (this._instance == null) {
             this._instance = new GenCSModule();
         }
         return this._instance;
     }
+
     // ------------------ended 单例 ------------------
 
-    private _codeLang: CodeLanguageEnum;
+    private _codeLang: CodeLang;
     private _export: IConfigExport;
     private _configNames: string[];
     private _configSplitor: string;
 
     /**
      * 发布
-     * @param exportID 
-     * @returns 
+     * @param exportID
+     * @returns
      */
     public gen(exportID: number): boolean {
         this._export = DataModel.Instance.config.exports.find(e => e.id == exportID);
@@ -57,13 +60,13 @@ export class GenCSModule {
         IOUtils.makeDir(this._export.export_script_url);
 
         // 拷贝固定代码
-        IOUtils.copy(`templates/${this._export.id}/scripts/`, this._export.export_script_url);
+        IOUtils.copy(`templates/${this._export.template_name || this._export.id}/scripts/`, this._export.export_script_url);
 
         this._configNames = DataModel.Instance.getConfigNamesAndCutDataByConfigType(this._export.id);
 
         this._configSplitor = DataModel.Instance.config.export_data_splitor;
         if (DataModel.Instance.config.export_data_splitor_random_enabled) {
-            this._configSplitor = StringUtils.genPassword(8, true, true, false, true);
+            this._configSplitor = StrUtils.genPassword(8, true, true, false, true);
         }
 
         let flag = this.genEnum();
@@ -100,30 +103,32 @@ export class GenCSModule {
 
     /**
      * 生成枚举类
-     * @returns 
+     * @returns
      */
     private genEnum(): boolean {
-        let configEnumTemplate = CommonUtils.getTemplate(this._export.id, "ConfigEnum.txt");
+        let configEnumTemplate = CommonUtils.getTemplate(this._export, "ConfigEnum.txt");
 
         let enumNames = Object.keys(DataModel.Instance.enum);
         // 过滤掉不生成的
         enumNames = enumNames.filter(enumName => {
-            return !DataModel.Instance.remark[enumName].generate || DataModel.Instance.remark[enumName].generate.indexOf(this._export.id) >= 0;
+            let rmk: Remark = DataModel.Instance.remark[enumName];
+            return rmk.generate?.indexOf(this._export.id) >= 0;
         });
+
         for (let idx = 0; idx < enumNames.length; idx++) {
             const enumName = enumNames[idx];
             let enumData = DataModel.Instance.enum[enumName];
 
             let cw = new CodeWriter();
             enumData.forEach((aData, n) => {
-                cw.add(2, `/**`);
-                cw.add(2, ` * ${aData.annotation}`);
-                cw.add(2, ` */`);
+                if (aData.annotation) {
+                    cw.addStr(CommonUtils.getCommentStr(this._codeLang, aData.annotation, 2) + "\n");
+                }
                 let isLast = n == enumData.length - 1;
                 cw.add(2, `${aData.key} = ${aData.value}${isLast ? "" : ","}`, !isLast);
             });
 
-            let writeContent = StringUtils.format(configEnumTemplate,
+            let writeContent = StrUtils.format(configEnumTemplate,
                 enumName,
                 cw.content
             );
@@ -135,29 +140,26 @@ export class GenCSModule {
 
     /**
      * 生成Item类、竖表类
-     * @returns 
+     * @returns
      */
     private genItemAndVertical(): boolean {
-        let configItemTemplate = CommonUtils.getTemplate(this._export.id, "ConfigItem.txt");
-        let configSingleTemplate = CommonUtils.getTemplate(this._export.id, "ConfigSingle.txt");
+        let configItemTemplate = CommonUtils.getTemplate(this._export, "ConfigItem.txt");
+        let configSingleTemplate = CommonUtils.getTemplate(this._export, "ConfigSingle.txt");
 
         for (let n = 0; n < this._configNames.length; n++) {
             let configName = this._configNames[n];
             let cfg = DataModel.Instance.originConfig[configName];
-            let configRemark = DataModel.Instance.remark[configName];
-            let parentRemark = configRemark.config_other_info
-                && configRemark.config_other_info.parent
-                && DataModel.Instance.remark[configRemark.config_other_info.parent];
+            let configRemark: Remark = DataModel.Instance.remark[configName];
+            let parentRemark: Remark = configRemark.parent && DataModel.Instance.remark[configRemark.parent];
 
             let parents = DataModel.Instance.getParents(configName);
             let bestParentConfigName: string;
 
             if (parentRemark) {
-                bestParentConfigName = StringUtils.convertToLowerCamelCase(parents[parents.length - 1]);
+                bestParentConfigName = StrUtils.convertToLowerCamelCase(parents[parents.length - 1]);
             }
 
-            let parentItemName = parentRemark && (configRemark.config_other_info.parent + DataModel.Instance.config.export_item_suffix);
-            let coi = configRemark.config_other_info;
+            let parentItemName = parentRemark && (configRemark.parent + DataModel.Instance.config.export_item_suffix);
 
             if (cfg.fixed_keys) {
                 let uniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang);
@@ -175,8 +177,8 @@ export class GenCSModule {
 
                 let fixedKeys = [["uniqueKey", uniqueKeyType, bestParentConfigName]];
 
-                if (coi && !coi.isSingleMainKey) {
-                    let mainKeyNames = coi.mainKeyNames;
+                if (!configRemark.isSingleMainKey) {
+                    let mainKeyNames = configRemark.mainKeyNames;
                     for (let mksIdx = 0; mksIdx < mainKeyNames.length; mksIdx++) {
                         let mainKeyName = mainKeyNames[mksIdx];
                         let mainKeyType = DataModel.Instance.getConfigKeyType(configName, mainKeyName, this._codeLang);
@@ -193,31 +195,28 @@ export class GenCSModule {
                         fixedKeys.push([mainKeyName, mainKeyType, bestParentConfigName]);
                     }
                 }
+
                 let allFixedKeys = DataModel.Instance.getConfigFixedKeys(configName, this._codeLang, true);
                 allFixedKeys = allFixedKeys.filter(arr => !fixedKeys.find(arr2 => arr2[0] == arr[0]))
                 fixedKeys = [...fixedKeys, ...allFixedKeys];
                 let selfFixedKeys = DataModel.Instance.getConfigFixedKeys(configName, this._codeLang);
 
                 if (!parentRemark) {
-                    cwField.add(2, `/// <summary>`);
-                    cwField.add(2, `/// 唯一主键`);
-                    cwField.add(2, `/// </summary>`);
+                    cwField.addStr(CommonUtils.getCommentStr(this._codeLang, "唯一主键", 2) + "\n");
                     cwField.add(2, `public ${uniqueKeyType} UniqueKey { private set; get; }`);
 
                     cwConstructorArgsAssign.add(3, `UniqueKey = uniqueKey;`);
 
-                    if (coi && !coi.isSingleMainKey) {
-                        let mainKeyNames = coi.mainKeyNames;
+                    if (!configRemark.isSingleMainKey) {
+                        let mainKeyNames = configRemark.mainKeyNames;
                         for (let mksIdx = 0; mksIdx < mainKeyNames.length; mksIdx++) {
                             let mainKeyName = mainKeyNames[mksIdx];
                             let mainKeyType = DataModel.Instance.getConfigKeyType(configName, mainKeyName, this._codeLang);
 
-                            cwField.add(2, `/// <summary>`);
-                            cwField.add(2, `/// 第${mksIdx + 1}主键`);
-                            cwField.add(2, `/// </summary>`);
+                            cwField.addStr(CommonUtils.getCommentStr(this._codeLang, `第${mksIdx + 1}主键`, 2) + "\n");
 
                             let mainKeyVarName = DataModel.Instance.getMainKeyVarName(mksIdx + 1);
-                            let upperMainKeyFieldName = StringUtils.convertToUpperCamelCase(mainKeyVarName);
+                            let upperMainKeyFieldName = StrUtils.convertToUpperCamelCase(mainKeyVarName);
                             let lowerMainKeyFieldName = mainKeyVarName;
 
                             cwField.add(2, `public ${mainKeyType} ${upperMainKeyFieldName} { private set; get; }`);
@@ -232,44 +231,37 @@ export class GenCSModule {
                     let valType = fixedKey[1];
                     let fromConfig = fixedKey[2];
 
-                    let configRmk = DataModel.Instance.remark[fromConfig] || configRemark;
+                    let configRmk: Remark = DataModel.Instance.remark[fromConfig] || configRemark;
 
-                    let isSelfKey = selfFixedKeys.find(arr => arr[0] == fixed_key) != null;
-                    let isMainKey = DataModel.Instance.isMainKey(configName, fixed_key);
+                    let isSelfKey = selfFixedKeys.find(arr => arr[0] == fixed_key) != null; // 是否是本配置的key
+                    let isMainKey = DataModel.Instance.isMainKey(configName, fixed_key);    // 是否是主键key
 
-                    let lowerCamelFixedKey = StringUtils.convertToLowerCamelCase(fixed_key);
-                    let upperCamelFixedKey = StringUtils.convertToUpperCamelCase(fixed_key);
+                    let lowerCamelFixedKey = StrUtils.convertToLowerCamelCase(fixed_key);
+                    let upperCamelFixedKey = StrUtils.convertToUpperCamelCase(fixed_key);
 
                     let genField = isSelfKey && (!parentRemark || !isMainKey);
+                    let field: RemarkField = configRmk?.fields && configRmk.fields[fixed_key];
 
                     if (genField) {
-                        let annotation: string;
-                        if (configRmk) {
-                            if (configRmk[fixed_key]) {
-                                annotation = configRmk[fixed_key].annotation;
-                            }
-                        }
-                        if (annotation) {
-                            cwField.add(2, `/// <summary>`);
-                            cwField.add(2, `/// ${annotation}`);
-                            cwField.add(2, `/// </summary>`);
+                        if (field?.annotation) {
+                            cwField.addStr(CommonUtils.getCommentStr(this._codeLang, field.annotation, 2) + "\n");
                         }
                     }
 
-                    if (configRmk[fixed_key] && configRmk[fixed_key].enum) {  // 处理枚举
+                    if (field?.enum) {  // 处理枚举
                         if (valType != CSTypeEnum.Int) {
                             console.log(cli.red("枚举的值不是整数！-> " + configName + " -> " + fixed_key));
                             return false;
                         }
-                        valType = configRmk[fixed_key].enum;
+                        valType = field.enum;
                         if (genField) {
                             cwField.add(2, `public ${valType} ${upperCamelFixedKey} { private set; get; }`, false);
                         }
                         constructorArgsContent += `${valType} ${lowerCamelFixedKey}`;
-                    } else if (configRmk[fixed_key] && configRmk[fixed_key].link) {    // 处理表连接
-                        let linkConfigName = configRmk[fixed_key].link;
-                        let linkedConfigItemName = configRmk[fixed_key].link + DataModel.Instance.config.export_item_suffix;
-                        if (configRmk[fixed_key].linkIsArray) {   // 处理表连接（数组形式）
+                    } else if (field?.link) {    // 处理表连接
+                        let linkConfigName = field.link;
+                        let linkedConfigItemName = field.link + DataModel.Instance.config.export_item_suffix;
+                        if (field.linkIsArray) {   // 处理表连接（数组形式）
                             if (valType == CSTypeEnum.IntList || valType == CSTypeEnum.StringList) {
                                 if (genField) {
                                     cwField.add(2, `public IReadOnlyList<${linkedConfigItemName}> ${upperCamelFixedKey} { private set; get; }`, false);
@@ -295,6 +287,7 @@ export class GenCSModule {
                     if (genField) {
                         cwConstructorArgsAssign.add(3, `${upperCamelFixedKey} = ${lowerCamelFixedKey};`, false);
                     }
+
                     if (parentRemark) {
                         if (!isSelfKey || isMainKey) {
                             constructorExtendsArgsContent += (constructorExtendsArgsContent ? ", " : "") + lowerCamelFixedKey;
@@ -314,7 +307,7 @@ export class GenCSModule {
                     constructorExtendsArgsContent = ` : base(${constructorExtendsArgsContent})`;
                 }
 
-                let writeContent = StringUtils.format(configItemTemplate,
+                let writeContent = StrUtils.format(configItemTemplate,
                     itemClassName,
                     extendsStr,
                     cwField.content,
@@ -323,7 +316,7 @@ export class GenCSModule {
                     constructorExtendsArgsContent,
                     cwConstructorArgsAssign.content,
                 );
-                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + DataModel.Instance.config.export_item_suffix + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.config_other_info.sheetType})脚本成功！-> {0}`);
+                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + DataModel.Instance.config.export_item_suffix + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.sheetType})脚本成功！-> {0}`);
 
             } else {
 
@@ -335,10 +328,15 @@ export class GenCSModule {
                 let curNum = 0;
                 for (const fixed_key in cfg) {
                     let val = cfg[fixed_key];
-                    let valType = DataModel.Instance.getValueType(val, this._codeLang);
+                    let valType = DataModel.Instance.getValueType(val, this._codeLang, false, configName, fixed_key);
 
-                    let lowerCamelFixedKey = StringUtils.convertToLowerCamelCase(fixed_key);
-                    let upperCamelFixedKey = StringUtils.convertToUpperCamelCase(fixed_key);
+                    let field: RemarkField = configRemark.fields && configRemark.fields[fixed_key];
+                    if (field?.annotation) {
+                        cwField.addStr(CommonUtils.getCommentStr(this._codeLang, field.annotation, 2) + "\n");
+                    }
+
+                    let lowerCamelFixedKey = StrUtils.convertToLowerCamelCase(fixed_key);
+                    let upperCamelFixedKey = StrUtils.convertToUpperCamelCase(fixed_key);
 
                     cwField.add(2, `public ${valType} ${upperCamelFixedKey} { private set; get; }`, false);
 
@@ -354,14 +352,14 @@ export class GenCSModule {
                     curNum++;
                 }
 
-                let writeContent = StringUtils.format(configSingleTemplate,
+                let writeContent = StrUtils.format(configSingleTemplate,
                     configName,
                     cwField.content,
                     configName,
                     constructorArgsContent,
                     cwConstructorArgsAssign.content,
                 );
-                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置Item(${configRemark.config_other_info.sheetType})脚本成功！-> {0}`);
+                IOUtils.writeTextFile(path.join(this._export.export_script_url, configName + "." + this._export.script_suffix), writeContent, LineBreak.CRLF, `导出配置(${configRemark.sheetType})脚本成功！-> {0}`);
             }
         }
 
@@ -370,10 +368,10 @@ export class GenCSModule {
 
     /**
      * 生成Manager类
-     * @returns 
+     * @returns
      */
     private genMgr(): boolean {
-        let configManagerTemplate = CommonUtils.getTemplate(this._export.id, "ConfigManager.txt");
+        let configMgrTemplate = CommonUtils.getTemplate(this._export, "ConfigMgr.txt");
         let cwField = new CodeWriter();
         let cwParse = new CodeWriter();
 
@@ -381,22 +379,14 @@ export class GenCSModule {
             const configName = this._configNames[idx];
             let cfg = DataModel.Instance.originConfig[configName];
             let itemClassName = configName + DataModel.Instance.config.export_item_suffix;
-            let configRemark = DataModel.Instance.remark[configName];
+            let configRemark: Remark = DataModel.Instance.remark[configName];
 
             let parents = DataModel.Instance.getParents(configName);
             let parentsReverse = parents ? [...parents].reverse() : null;
             let parentLayer = parents ? parents.length : 0;
-            let parentRmks = [];
-            if (parentLayer) {
-                parents.forEach(pa => {
-                    parentRmks.push(DataModel.Instance.remark[pa]);
-                });
-            }
 
-            let coi = configRemark.config_other_info;
-
-            let lowerCamelConfigName = StringUtils.convertToLowerCamelCase(configName);
-            let upperCamelConfigName = StringUtils.convertToUpperCamelCase(configName);
+            let lowerCamelConfigName = StrUtils.convertToLowerCamelCase(configName);
+            let upperCamelConfigName = StrUtils.convertToUpperCamelCase(configName);
 
             cwParse.add(3, `// ${configName}`);
             cwParse.add(3, `section = sections[${idx}];`);
@@ -409,14 +399,14 @@ export class GenCSModule {
                 let uniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang);
 
                 let idxOffset = 1;
-                if (coi && !coi.isSingleMainKey) {
-                    let mainKeyNames = coi.mainKeyNames;
+                if (!configRemark.isSingleMainKey) {
+                    let mainKeyNames = configRemark.mainKeyNames;
                     idxOffset = mainKeyNames.length + 1;
                 }
 
-                if (!parentLayer) {
-                    cwField.add(2, `public static BaseConfig<${uniqueKeyType}, ${itemClassName}> ${configName} { private set; get; }`, false);
-                }
+                // if (!parentLayer) {
+                cwField.add(2, `public static BaseConfig<${uniqueKeyType}, ${itemClassName}> ${configName} { private set; get; }`, false);
+                // }
 
                 let bestParentConfigVarName: string;
 
@@ -424,8 +414,9 @@ export class GenCSModule {
 
                 if (parentLayer) {
                     dictVarName = `dict${idx}`;
-                    bestParentConfigVarName = StringUtils.convertToLowerCamelCase(parents[parents.length - 1]) + "Data";
+                    bestParentConfigVarName = StrUtils.convertToLowerCamelCase(parents[parents.length - 1]) + "Data";
                     cwParse.add(3, `var ${dictVarName} = ${bestParentConfigVarName};`);
+                    cwParse.add(3, `Dictionary<${uniqueKeyType}, ${itemClassName}> ${dictVarName}_self = new Dictionary<${uniqueKeyType}, ${itemClassName}>();`);
                 } else {
                     dictVarName = `${lowerCamelConfigName}Data`;
                     cwParse.add(3, `Dictionary<${uniqueKeyType}, ${itemClassName}> ${dictVarName} = new Dictionary<${uniqueKeyType}, ${itemClassName}>();`);
@@ -437,26 +428,26 @@ export class GenCSModule {
                 if (parentLayer) {
                     parentsReverse.forEach((parent, n) => {
                         let parentConfigItemName = parent + DataModel.Instance.config.export_item_suffix;
-                        cwParse.add(4, `var parentItem${n + 1} = ${dictVarName}[${StringUtils.format(DataModel.Instance.getParseFuncNameByType(DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang, false), this._codeLang), `lines[n]`)}] as ${parentConfigItemName};`);
+                        cwParse.add(4, `var parentItem${n + 1} = ${dictVarName}[${StrUtils.format(DataModel.Instance.getParseFuncNameByType(DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang, false), this._codeLang), `lines[n]`)}] as ${parentConfigItemName};`);
                     });
                 }
 
                 let constructorArgsContent = "";
 
                 // 判断唯一主键是枚举
-                if (configRemark.config_other_info && configRemark.config_other_info.mainKeyOnlyOneAndIsEnum) {
+                if (configRemark.mainKeyOnlyOneAndIsEnum) {
                     constructorArgsContent += `(${uniqueKeyType}) `;
                 }
 
-                constructorArgsContent += StringUtils.format(DataModel.Instance.getParseFuncNameByType(DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang, false), this._codeLang), `lines[n]`);
+                constructorArgsContent += StrUtils.format(DataModel.Instance.getParseFuncNameByType(DataModel.Instance.getConfigUniqueKeyType(configName, this._codeLang, false), this._codeLang), `lines[n]`);
 
-                if (coi && !coi.isSingleMainKey) {
+                if (!configRemark.isSingleMainKey) {
                     constructorArgsContent += ", ";
-                    let mainKeyNames = coi.mainKeyNames;
+                    let mainKeyNames = configRemark.mainKeyNames;
                     for (let mksIdx = 0; mksIdx < mainKeyNames.length; mksIdx++) {
                         let mainKeyName = mainKeyNames[mksIdx];
                         let valType = DataModel.Instance.getConfigKeyType(configName, mainKeyName, this._codeLang);
-                        constructorArgsContent += StringUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${mksIdx + 1}]`);
+                        constructorArgsContent += StrUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${mksIdx + 1}]`);
                         if (mksIdx != mainKeyNames.length - 1) {
                             constructorArgsContent += ", ";
                         }
@@ -475,7 +466,7 @@ export class GenCSModule {
                             let fixed_key = parentFixedKeys[m];
                             if (addedFixedKeys.indexOf(fixed_key) != -1)
                                 continue;
-                            let varName = StringUtils.convertToUpperCamelCase(fixed_key);
+                            let varName = StrUtils.convertToUpperCamelCase(fixed_key);
                             constructorArgsContent += `parentItem${n + 1}.${varName}, `;
                             addedFixedKeys.push(fixed_key);
                         }
@@ -500,52 +491,65 @@ export class GenCSModule {
 
                     let valType = DataModel.Instance.getConfigKeyType(configName, fixed_key, this._codeLang);
 
-                    if (configRemark[fixed_key] && configRemark[fixed_key].enum) {  // 处理枚举
+                    let field = configRemark?.fields && configRemark.fields[fixed_key];
+                    if (field?.enum) {  // 处理枚举
                         if (valType != CSTypeEnum.Int) {
                             console.log(cli.red("枚举的值不是整数！-> " + configName + " -> " + fixed_key));
                             return false;
                         }
-                        valType = configRemark[fixed_key].enum;
+                        valType = field.enum;
                         constructorArgsContent += `(${valType}) `;
-                        constructorArgsContent += StringUtils.format(DataModel.Instance.getParseFuncNameByType(CSTypeEnum.Int, this._codeLang), `lines[n + ${idx2 + idxOffset}]`);
-                    } else if (configRemark[fixed_key].link) {    // 处理表连接
-                        let linkConfigName = configRemark[fixed_key].link;
-                        if (configRemark[fixed_key].linkIsArray) {   // 处理表连接（数组形式）
+                        constructorArgsContent += StrUtils.format(DataModel.Instance.getParseFuncNameByType(CSTypeEnum.Int, this._codeLang), `lines[n + ${idx2 + idxOffset}]`);
+                    } else if (field?.link) {    // 处理表连接
+                        let linkConfigName = field.link;
+                        if (field.linkIsArray) {   // 处理表连接（数组形式）
                             if (valType == CSTypeEnum.IntList || valType == CSTypeEnum.StringList) {
-                                let linkedConfigUniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(configRemark[fixed_key].link, this._codeLang);
-                                let linkedConfigItemName = configRemark[fixed_key].link + DataModel.Instance.config.export_item_suffix;
-                                constructorArgsContent += `ConfigUtility.GetLinkedConfigs<${linkedConfigUniqueKeyType}, ${linkedConfigItemName}>(${StringUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${idx2 + idxOffset}]`)}, ${configRemark[fixed_key].link})`
+                                let linkedConfigUniqueKeyType = DataModel.Instance.getConfigUniqueKeyType(field.link, this._codeLang);
+                                let linkedConfigItemName = field.link + DataModel.Instance.config.export_item_suffix;
+                                constructorArgsContent += `ConfigUtility.GetLinkedConfigs<${linkedConfigUniqueKeyType}, ${linkedConfigItemName}>(${StrUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${idx2 + idxOffset}]`)}, ${field.link})`;
                             } else {
                                 console.log(cli.red("链接的值不是整数数组或字符串数组！-> " + configName + " -> " + fixed_key));
                                 return false;
                             }
                         } else {    // 处理表连接（非数组形式）
-                            constructorArgsContent += `${linkConfigName}.Get(lines[n + ${idx2 + idxOffset}])`;
+                            constructorArgsContent += `${linkConfigName}.Get(${StrUtils.format(DataModel.Instance.getParseFuncNameByType(CSTypeEnum.Int, this._codeLang), `lines[n + ${idx2 + idxOffset}]`)})`;
                         }
                     } else {    // 常规
-                        constructorArgsContent += StringUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${idx2 + idxOffset}]`);
+                        constructorArgsContent += StrUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[n + ${idx2 + idxOffset}]`);
                     }
 
                     if (idx2 < fixed_keys.length - 1) {
                         constructorArgsContent += ", ";
                     }
-                };
+                }
+
+                // 保证逗号不在最后
+                if (constructorArgsContent?.length >= 2 && constructorArgsContent.substring(constructorArgsContent.length - 2, constructorArgsContent.length) == ", ") {
+                    constructorArgsContent = constructorArgsContent.substring(0, constructorArgsContent.length - 2);
+                }
 
                 cwParse.add(4, `var item = new ${itemClassName}(${constructorArgsContent});`);
-                cwParse.add(4, `${dictVarName}[item.UniqueKey] = item;`);
+                if (!parentLayer) {
+                    cwParse.add(4, `${dictVarName}[item.UniqueKey] = item;`);
+                } else {
+                    cwParse.add(4, `${dictVarName}[item.UniqueKey] = item;`);
+                    cwParse.add(4, `${dictVarName}_self[item.UniqueKey] = item;`);
+                }
                 cwParse.add(3, `}`);
 
                 if (!parentLayer) {
                     cwParse.add(3, `${configName} = new BaseConfig<${uniqueKeyType}, ${itemClassName}>("${configName}", ${dictVarName});`, false);
+                } else {
+                    cwParse.add(3, `${configName} = new BaseConfig<${uniqueKeyType}, ${itemClassName}>("${configName}", ${dictVarName}_self);`, false);
                 }
 
                 // -------------------------- began 如果是多主键则生成额外的数据集合与解析 --------------------------
 
-                if (coi && !coi.isSingleMainKey) {
-                    let mainKeyPrefix = StringUtils.convertToUpperCamelCase(DataModel.MainKeyVarName);
+                if (!configRemark.isSingleMainKey) {
+                    let mainKeyPrefix = StrUtils.convertToUpperCamelCase(DataModel.MainKeyVarName);
 
                     cwField.newLine();
-                    let mainKeyNames = coi.mainKeyNames;
+                    let mainKeyNames = configRemark.mainKeyNames;
 
                     let collectionTypeStr = DataModel.Instance.getConfigCollectionTypeByIndex(configName, this._codeLang);
 
@@ -615,9 +619,8 @@ export class GenCSModule {
 
                 fixed_keys.forEach((fixed_key, idx2) => {
                     let val = cfg[fixed_key];
-                    let valType = DataModel.Instance.getValueType(val, this._codeLang);
-
-                    constructorArgsContent += StringUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[${idx2}]`);
+                    let valType = DataModel.Instance.getValueType(val, this._codeLang, false, configName, fixed_key);
+                    constructorArgsContent += StrUtils.format(DataModel.Instance.getParseFuncNameByType(valType, this._codeLang), `lines[${idx2}]`);
 
                     if (idx2 < fixed_keys.length - 1) {
                         constructorArgsContent += ", ";
@@ -633,7 +636,7 @@ export class GenCSModule {
             }
         }
 
-        let writeContent = StringUtils.format(configManagerTemplate,
+        let writeContent = StrUtils.format(configMgrTemplate,
             cwField.content,
             cwParse.content,
         );
@@ -644,7 +647,7 @@ export class GenCSModule {
 
     /**
      * 生成配置文本
-     * @returns 
+     * @returns
      */
     private genConfigText(): boolean {
         let cw = new CodeWriter();
@@ -668,14 +671,13 @@ export class GenCSModule {
                     cw.add(0, uKey);
 
                     let uKeySplit = isNaN(+uniqueKey) && uKey.split("_");
+                    let rrrmk: Remark = DataModel.Instance.remark[configName];
 
                     if (
                         uKeySplit
                         && uKeySplit.length > 1
-                        && DataModel.Instance.remark[configName]
-                        && DataModel.Instance.remark[configName].config_other_info
-                        && DataModel.Instance.remark[configName].config_other_info.mainKeySubs
-                        && uKeySplit.length == DataModel.Instance.remark[configName].config_other_info.mainKeySubs.length
+                        && rrrmk?.mainKeySubs
+                        && uKeySplit.length == rrrmk.mainKeySubs.length
                     ) {
                         uKeySplit.forEach(cKey => {
                             cKey = !isNaN(+cKey) ? +cKey : cKey;
@@ -688,7 +690,7 @@ export class GenCSModule {
                         if (Array.isArray(val)) {
                             val = JSON.stringify(val);
                         } else {
-                            val = val.toString();
+                            val = val?.toString() || "";
                         }
                         cw.add(0, `${val}`);
                     }
@@ -699,7 +701,7 @@ export class GenCSModule {
                     if (Array.isArray(val)) {
                         val = JSON.stringify(val);
                     } else if (val != null) {
-                        val = val.toString();
+                        val = val?.toString() || "";
                     } else {
                         val = "";
                     }
