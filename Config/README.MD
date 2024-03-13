@@ -202,6 +202,8 @@ this.btn.text = config.langId.cn;
 
 ## 五、自定义导出项（程序向）
 
+工程文件夹就是 Generator 文件夹，是 TypeScript 工程，因此你需要一些 TypeScript 基础。
+
 ### 5.1 项目结构
 
 | 文件夹       | 描述                                                   |
@@ -220,7 +222,7 @@ this.btn.text = config.langId.cn;
 
 比如你想要生成**Lua**配置脚本，那就新建个`GenLuaModule.ts`，逻辑呢就参考上面的两个就好，写起来会比较枯燥。
 
-言尽于此。
+> 修改完源码后，记得要在终端执行`npx tsc`，将 TS 代码全都编译成 JS 代码，工具最终运行的都是 JS 代码。
 
 ---
 
