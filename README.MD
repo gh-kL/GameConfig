@@ -29,7 +29,7 @@
 3. 根据你的喜好打开`Example`中的`UnityProject（Unity示例项目）`或`CCCProject（Cocos Creator示例项目）`。
 4. 运行示例场景。
 
-> 完成上述步骤，你就看到**配置被输出在屏幕上**，下一步就需要了解如何配表并导出，请查看**详细文档**（[中文链接](https://github.com/gh-kL/GameConfig/blob/main/Config/README.md)）。
+> 完成上述步骤，你就看到**配置被输出在屏幕上**，下一步就需要了解如何配表并导出，请查看**详细文档**（[中文链接](https://github.com/gh-kL/GameConfig/blob/main/Config/README.MD)）。
 
 ## 已知问题
 
